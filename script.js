@@ -1,51 +1,29 @@
 // ===================================
-// TABLA CAVANI 2025 - Simple PIN Login Version
+// TABLA CAVANI 2026 - Supabase Version
 // ===================================
 
 // PIN correcto
 const CORRECT_PIN = '270701';
 
-// Data Structure
-let appData = {
-    participants: [],
-    events: []
-};
-
 // Login state
 let isLoggedIn = false;
+
+// Realtime subscriptions
+let participantsSubscription = null;
+let eventsSubscription = null;
+let scoresSubscription = null;
 
 // ===================================
 // Initialization
 // ===================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadData();
+document.addEventListener('DOMContentLoaded', async () => {
     checkLoginStatus();
     updateLoginUI();
-    renderRanking();
-    renderEvents();
-    updateStats();
+    await loadAndRenderAll();
+    setupRealtimeSubscriptions();
     initializeEventListeners();
 });
-
-// ===================================
-// Data Management
-// ===================================
-
-function loadData() {
-    const savedData = localStorage.getItem('tablaCavani2025');
-    if (savedData) {
-        try {
-            appData = JSON.parse(savedData);
-        } catch (e) {
-            console.error('Error loading data:', e);
-        }
-    }
-}
-
-function saveData() {
-    localStorage.setItem('tablaCavani2025', JSON.stringify(appData));
-}
 
 // ===================================
 // Login Management
@@ -130,33 +108,155 @@ function handleLogin() {
 }
 
 // ===================================
+// Supabase Realtime Subscriptions
+// ===================================
+
+function setupRealtimeSubscriptions() {
+    if (!supabase) {
+        console.warn('Supabase not initialized, skipping realtime subscriptions');
+        return;
+    }
+
+    // Subscribe to participants changes
+    participantsSubscription = supabase
+        .channel('participants_channel')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'participants' },
+            (payload) => {
+                console.log('Participants changed:', payload);
+                loadAndRenderAll();
+            }
+        )
+        .subscribe();
+
+    // Subscribe to events changes
+    eventsSubscription = supabase
+        .channel('events_channel')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'events' },
+            (payload) => {
+                console.log('Events changed:', payload);
+                loadAndRenderAll();
+            }
+        )
+        .subscribe();
+
+    // Subscribe to event_scores changes
+    scoresSubscription = supabase
+        .channel('scores_channel')
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'event_scores' },
+            (payload) => {
+                console.log('Scores changed:', payload);
+                loadAndRenderAll();
+            }
+        )
+        .subscribe();
+}
+
+// ===================================
+// Data Loading Functions
+// ===================================
+
+async function loadAndRenderAll() {
+    await renderRanking();
+    await renderEvents();
+    await updateStats();
+}
+
+async function getParticipants() {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('participants')
+        .select('*')
+        .order('name');
+
+    if (error) {
+        console.error('Error loading participants:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
+async function getEvents() {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
+
+    if (error) {
+        console.error('Error loading events:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
+async function getEventScores() {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('event_scores')
+        .select('*');
+
+    if (error) {
+        console.error('Error loading event scores:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
+// ===================================
 // Ranking Functions
 // ===================================
 
-function calculateParticipantScore(participantId) {
-    const participant = appData.participants.find(p => p.id === participantId);
-    if (!participant) return 0;
+async function calculateParticipantScore(participantId) {
+    const { data: scores, error } = await supabase
+        .from('event_scores')
+        .select('score')
+        .eq('participant_id', participantId);
 
-    let totalScore = participant.startingPoints || 0;
+    if (error) {
+        console.error('Error calculating score:', error);
+        return 0;
+    }
 
-    participant.events.forEach(eventScore => {
-        totalScore += eventScore.score;
-    });
+    const eventScores = scores.reduce((sum, s) => sum + (s.score || 0), 0);
 
-    return totalScore;
+    // Get starting points
+    const { data: participant } = await supabase
+        .from('participants')
+        .select('starting_points')
+        .eq('id', participantId)
+        .single();
+
+    const startingPoints = participant?.starting_points || 0;
+
+    return startingPoints + eventScores;
 }
 
-function getRankingData() {
-    return appData.participants.map(p => ({
-        id: p.id,
-        name: p.name,
-        score: calculateParticipantScore(p.id)
-    })).sort((a, b) => b.score - a.score);
+async function getRankingData() {
+    const participants = await getParticipants();
+
+    const rankingData = await Promise.all(
+        participants.map(async (p) => ({
+            id: p.id,
+            name: p.name,
+            score: await calculateParticipantScore(p.id)
+        }))
+    );
+
+    return rankingData.sort((a, b) => b.score - a.score);
 }
 
-function renderRanking() {
+async function renderRanking() {
     const container = document.getElementById('rankingTable');
-    const rankingData = getRankingData();
+    const rankingData = await getRankingData();
 
     if (rankingData.length === 0) {
         container.innerHTML = `
@@ -187,10 +287,11 @@ function renderRanking() {
 // Event Functions
 // ===================================
 
-function renderEvents() {
+async function renderEvents() {
     const container = document.getElementById('eventsList');
+    const events = await getEvents();
 
-    if (appData.events.length === 0) {
+    if (events.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <p>📅 No hay juntadas registradas</p>
@@ -200,28 +301,47 @@ function renderEvents() {
         return;
     }
 
-    // Sort events by date (newest first)
-    const sortedEvents = [...appData.events].sort((a, b) =>
-        new Date(b.date) - new Date(a.date)
-    );
+    const participants = await getParticipants();
+    const allScores = await getEventScores();
 
     const disabledAttr = !isLoggedIn ? 'disabled' : '';
 
-    container.innerHTML = sortedEvents.map(event => {
+    const eventsHTML = await Promise.all(events.map(async (event) => {
         const formattedDate = new Date(event.date).toLocaleDateString('es-AR', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
         });
 
-        const participantScores = appData.participants.map(participant => {
-            const eventScore = participant.events.find(e => e.eventId === event.id);
-            return {
-                name: participant.name,
-                score: eventScore ? eventScore.score : 0,
-                description: eventScore ? eventScore.description : ''
-            };
-        }).filter(ps => ps.score !== 0 || ps.description);
+        // Get scores for this event
+        const eventScores = allScores.filter(s => s.event_id === event.id);
+
+        let participantScoresHTML = '';
+        if (eventScores.length > 0) {
+            const scoresHTML = eventScores
+                .filter(es => es.score !== 0 || es.description)
+                .map(es => {
+                    const participant = participants.find(p => p.id === es.participant_id);
+                    if (!participant) return '';
+
+                    const scoreClass = es.score > 0 ? 'positive' : es.score < 0 ? 'negative' : 'zero';
+                    return `
+                        <div class="participant-score-item">
+                            <div class="participant-score-header">
+                                <span class="participant-score-name">${participant.name}</span>
+                                <span class="participant-score-value ${scoreClass}">
+                                    ${es.score > 0 ? '+' : ''}${es.score}
+                                </span>
+                            </div>
+                            ${es.description ? `<div class="participant-score-description">${es.description}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+            if (scoresHTML) {
+                participantScoresHTML = `<div class="event-participants">${scoresHTML}</div>`;
+            }
+        }
 
         return `
             <div class="event-card">
@@ -230,7 +350,7 @@ function renderEvents() {
                         <h3>${event.name}</h3>
                         <div class="event-meta">
                             <span>📅 ${formattedDate}</span>
-                            <span>🏆 ${event.totalPointsDisputed} puntos</span>
+                            <span>🏆 ${event.total_points_disputed || 0} puntos</span>
                         </div>
                     </div>
                     <div class="event-actions">
@@ -242,45 +362,34 @@ function renderEvents() {
                         </button>
                     </div>
                 </div>
-                ${participantScores.length > 0 ? `
-                    <div class="event-participants">
-                        ${participantScores.map(ps => `
-                            <div class="participant-score-item">
-                                <div class="participant-score-header">
-                                    <span class="participant-score-name">${ps.name}</span>
-                                    <span class="participant-score-value ${ps.score > 0 ? 'positive' : ps.score < 0 ? 'negative' : 'zero'}">
-                                        ${ps.score > 0 ? '+' : ''}${ps.score}
-                                    </span>
-                                </div>
-                                ${ps.description ? `<div class="participant-score-description">${ps.description}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                ${participantScoresHTML}
             </div>
         `;
-    }).join('');
+    }));
+
+    container.innerHTML = eventsHTML.join('');
 }
 
 // ===================================
 // Stats Functions
 // ===================================
 
-function updateStats() {
-    // Calculate total points disputed
-    const totalPoints = appData.events.reduce((sum, event) =>
-        sum + (event.totalPointsDisputed || 0), 0
+async function updateStats() {
+    const events = await getEvents();
+
+    const totalPoints = events.reduce((sum, event) =>
+        sum + (event.total_points_disputed || 0), 0
     );
 
     document.getElementById('totalPointsDisputed').textContent = totalPoints;
-    document.getElementById('totalEvents').textContent = appData.events.length;
+    document.getElementById('totalEvents').textContent = events.length;
 }
 
 // ===================================
 // Participant Functions
 // ===================================
 
-function showAddParticipantModal() {
+async function showAddParticipantModal() {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión primero');
         return;
@@ -298,7 +407,7 @@ function hideAddParticipantModal() {
     modal.classList.remove('active');
 }
 
-function saveParticipant() {
+async function saveParticipant() {
     const name = document.getElementById('participantName').value.trim();
     const startingPoints = parseInt(document.getElementById('startingPoints').value) || 0;
 
@@ -312,43 +421,56 @@ function saveParticipant() {
         return;
     }
 
-    // Check for duplicate names
-    if (appData.participants.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        alert('❌ Ya existe un participante con ese nombre');
-        return;
+    try {
+        // Check for duplicates
+        const { data: existing } = await supabase
+            .from('participants')
+            .select('id')
+            .ilike('name', name)
+            .single();
+
+        if (existing) {
+            alert('❌ Ya existe un participante con ese nombre');
+            return;
+        }
+
+        // Insert participant
+        const { error } = await supabase
+            .from('participants')
+            .insert([{
+                name: name,
+                starting_points: startingPoints
+            }]);
+
+        if (error) throw error;
+
+        hideAddParticipantModal();
+        showNotification('✅ Participante agregado correctamente');
+
+    } catch (error) {
+        console.error('Error adding participant:', error);
+        alert('❌ Error al agregar participante: ' + error.message);
     }
-
-    const newParticipant = {
-        id: generateId(),
-        name: name,
-        startingPoints: startingPoints,
-        events: []
-    };
-
-    appData.participants.push(newParticipant);
-    saveData();
-    renderRanking();
-    hideAddParticipantModal();
-
-    showNotification('✅ Participante agregado correctamente');
 }
 
 // ===================================
 // Event CRUD Functions
 // ===================================
 
-function showAddEventModal() {
+async function showAddEventModal() {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión primero');
         return;
     }
 
-    const modal = document.getElementById('addEventModal');
+    const participants = await getParticipants();
 
-    if (appData.participants.length === 0) {
+    if (participants.length === 0) {
         alert('❌ Primero debes agregar participantes');
         return;
     }
+
+    const modal = document.getElementById('addEventModal');
 
     // Reset form
     document.getElementById('eventName').value = '';
@@ -356,7 +478,24 @@ function showAddEventModal() {
     document.getElementById('eventPoints').value = '1';
 
     // Populate participant scores
-    renderParticipantScoresForm('participantScores');
+    const container = document.getElementById('participantScores');
+    container.innerHTML = participants.map(p => `
+        <div class="participant-score-form">
+            <h4>${p.name}</h4>
+            <div class="score-input-group">
+                <div class="form-group mb-0">
+                    <label for="score-${p.id}">Puntaje (-3 a +3)</label>
+                    <input type="number" id="score-${p.id}" class="input-field" 
+                           min="-3" max="3" value="0" step="1">
+                </div>
+                <div class="form-group mb-0">
+                    <label for="desc-${p.id}">Descripción</label>
+                    <textarea id="desc-${p.id}" class="input-field" 
+                              placeholder="Opcional: razón del puntaje"></textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
 
     modal.classList.add('active');
     document.getElementById('eventName').focus();
@@ -367,29 +506,7 @@ function hideAddEventModal() {
     modal.classList.remove('active');
 }
 
-function renderParticipantScoresForm(containerId) {
-    const container = document.getElementById(containerId);
-
-    container.innerHTML = appData.participants.map(participant => `
-        <div class="participant-score-form">
-            <h4>${participant.name}</h4>
-            <div class="score-input-group">
-                <div class="form-group mb-0">
-                    <label for="score-${participant.id}">Puntaje (-3 a +3)</label>
-                    <input type="number" id="score-${participant.id}" class="input-field" 
-                           min="-3" max="3" value="0" step="1">
-                </div>
-                <div class="form-group mb-0">
-                    <label for="desc-${participant.id}">Descripción</label>
-                    <textarea id="desc-${participant.id}" class="input-field" 
-                              placeholder="Opcional: razón del puntaje"></textarea>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function saveEvent() {
+async function saveEvent() {
     const name = document.getElementById('eventName').value.trim();
     const date = document.getElementById('eventDate').value;
     const totalPointsDisputed = parseInt(document.getElementById('eventPoints').value) || 0;
@@ -409,61 +526,64 @@ function saveEvent() {
         return;
     }
 
-    const eventId = generateId();
+    try {
+        const participants = await getParticipants();
 
-    // Collect participant scores
-    const participantScores = [];
-    appData.participants.forEach(participant => {
-        const scoreInput = document.getElementById(`score-${participant.id}`);
-        const descInput = document.getElementById(`desc-${participant.id}`);
-        const score = parseInt(scoreInput.value) || 0;
-        const description = descInput.value.trim();
+        // Create event first
+        const { data: event, error: eventError } = await supabase
+            .from('events')
+            .insert([{
+                name: name,
+                date: date,
+                total_points_disputed: totalPointsDisputed
+            }])
+            .select()
+            .single();
 
-        // Validate score range
-        if (score < -3 || score > 3) {
-            alert(`❌ El puntaje de ${participant.name} debe estar entre -3 y +3`);
-            throw new Error('Invalid score range');
+        if (eventError) throw eventError;
+
+        // Collect and insert participant scores
+        const scores = [];
+        for (const participant of participants) {
+            const scoreInput = document.getElementById(`score-${participant.id}`);
+            const descInput = document.getElementById(`desc-${participant.id}`);
+            const score = parseInt(scoreInput.value) || 0;
+            const description = descInput.value.trim();
+
+            // Validate score range
+            if (score < -3 || score > 3) {
+                throw new Error(`El puntaje de ${participant.name} debe estar entre -3 y +3`);
+            }
+
+            // Only insert if score is not 0 or has description
+            if (score !== 0 || description) {
+                scores.push({
+                    event_id: event.id,
+                    participant_id: participant.id,
+                    score: score,
+                    description: description
+                });
+            }
         }
 
-        participantScores.push({
-            participantId: participant.id,
-            score: score,
-            description: description
-        });
-    });
+        if (scores.length > 0) {
+            const { error: scoresError } = await supabase
+                .from('event_scores')
+                .insert(scores);
 
-    // Create event
-    const newEvent = {
-        id: eventId,
-        name: name,
-        date: date,
-        totalPointsDisputed: totalPointsDisputed
-    };
-
-    appData.events.push(newEvent);
-
-    // Add scores to participants
-    participantScores.forEach(ps => {
-        const participant = appData.participants.find(p => p.id === ps.participantId);
-        if (participant) {
-            participant.events.push({
-                eventId: eventId,
-                score: ps.score,
-                description: ps.description
-            });
+            if (scoresError) throw scoresError;
         }
-    });
 
-    saveData();
-    renderRanking();
-    renderEvents();
-    updateStats();
-    hideAddEventModal();
+        hideAddEventModal();
+        showNotification('✅ Juntada agregada correctamente');
 
-    showNotification('✅ Juntada agregada correctamente');
+    } catch (error) {
+        console.error('Error adding event:', error);
+        alert('❌ ' + error.message);
+    }
 }
 
-function requestEditEvent(eventId) {
+async function requestEditEvent(eventId) {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión para editar eventos');
         return;
@@ -471,46 +591,71 @@ function requestEditEvent(eventId) {
     showEditEventModal(eventId);
 }
 
-function showEditEventModal(eventId) {
-    const event = appData.events.find(e => e.id === eventId);
-    if (!event) return;
+async function showEditEventModal(eventId) {
+    try {
+        const { data: event, error: eventError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', eventId)
+            .single();
 
-    const modal = document.getElementById('editEventModal');
+        if (eventError) throw eventError;
+        if (!event) {
+            alert('❌ Evento no encontrado');
+            return;
+        }
 
-    // Populate form with event data
-    document.getElementById('editEventName').value = event.name;
-    document.getElementById('editEventDate').value = event.date;
-    document.getElementById('editEventPoints').value = event.totalPointsDisputed;
+        const modal = document.getElementById('editEventModal');
 
-    // Populate participant scores
-    const container = document.getElementById('editParticipantScores');
-    container.innerHTML = appData.participants.map(participant => {
-        const eventScore = participant.events.find(e => e.eventId === eventId);
-        const score = eventScore ? eventScore.score : 0;
-        const description = eventScore ? eventScore.description : '';
+        // Populate form
+        document.getElementById('editEventName').value = event.name;
+        document.getElementById('editEventDate').value = event.date;
+        document.getElementById('editEventPoints').value = event.total_points_disputed || 0;
 
-        return `
-            <div class="participant-score-form">
-                <h4>${participant.name}</h4>
-                <div class="score-input-group">
-                    <div class="form-group mb-0">
-                        <label for="edit-score-${participant.id}">Puntaje (-3 a +3)</label>
-                        <input type="number" id="edit-score-${participant.id}" class="input-field" 
-                               min="-3" max="3" value="${score}" step="1">
-                    </div>
-                    <div class="form-group mb-0">
-                        <label for="edit-desc-${participant.id}">Descripción</label>
-                        <textarea id="edit-desc-${participant.id}" class="input-field" 
-                                  placeholder="Opcional: razón del puntaje">${description}</textarea>
+        // Get existing scores
+        const { data: eventScores } = await supabase
+            .from('event_scores')
+            .select('*')
+            .eq('event_id', eventId);
+
+        const scoresMap = {};
+        if (eventScores) {
+            eventScores.forEach(es => {
+                scoresMap[es.participant_id] = es;
+            });
+        }
+
+        // Populate participant scores
+        const participants = await getParticipants();
+        const container = document.getElementById('editParticipantScores');
+        container.innerHTML = participants.map(p => {
+            const scoreData = scoresMap[p.id] || { score: 0, description: '' };
+            return `
+                <div class="participant-score-form">
+                    <h4>${p.name}</h4>
+                    <div class="score-input-group">
+                        <div class="form-group mb-0">
+                            <label for="edit-score-${p.id}">Puntaje (-3 a +3)</label>
+                            <input type="number" id="edit-score-${p.id}" class="input-field" 
+                                   min="-3" max="3" value="${scoreData.score}" step="1">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="edit-desc-${p.id}">Descripción</label>
+                            <textarea id="edit-desc-${p.id}" class="input-field" 
+                                      placeholder="Opcional: razón del puntaje">${scoreData.description || ''}</textarea>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
 
-    // Store current event ID for update
-    modal.dataset.eventId = eventId;
-    modal.classList.add('active');
+        modal.dataset.eventId = eventId;
+        modal.classList.add('active');
+
+    } catch (error) {
+        console.error('Error showing edit modal:', error);
+        alert('❌ Error al abrir formulario: ' + error.message);
+    }
 }
 
 function hideEditEventModal() {
@@ -519,12 +664,14 @@ function hideEditEventModal() {
     delete modal.dataset.eventId;
 }
 
-function updateEvent() {
+async function updateEvent() {
     const modal = document.getElementById('editEventModal');
     const eventId = modal.dataset.eventId;
-    const event = appData.events.find(e => e.id === eventId);
 
-    if (!event) return;
+    if (!eventId) {
+        alert('❌ Error: ID de evento no encontrado');
+        return;
+    }
 
     const name = document.getElementById('editEventName').value.trim();
     const date = document.getElementById('editEventDate').value;
@@ -540,48 +687,70 @@ function updateEvent() {
         return;
     }
 
-    // Update event
-    event.name = name;
-    event.date = date;
-    event.totalPointsDisputed = totalPointsDisputed;
+    try {
+        // Update event
+        const { error: eventError } = await supabase
+            .from('events')
+            .update({
+                name: name,
+                date: date,
+                total_points_disputed: totalPointsDisputed
+            })
+            .eq('id', eventId);
 
-    // Update participant scores
-    appData.participants.forEach(participant => {
-        const scoreInput = document.getElementById(`edit-score-${participant.id}`);
-        const descInput = document.getElementById(`edit-desc-${participant.id}`);
-        const score = parseInt(scoreInput.value) || 0;
-        const description = descInput.value.trim();
+        if (eventError) throw eventError;
 
-        // Validate score range
-        if (score < -3 || score > 3) {
-            alert(`❌ El puntaje de ${participant.name} debe estar entre -3 y +3`);
-            throw new Error('Invalid score range');
+        // Delete existing scores and insert new ones
+        const { error: deleteError } = await supabase
+            .from('event_scores')
+            .delete()
+            .eq('event_id', eventId);
+
+        if (deleteError) throw deleteError;
+
+        // Collect and insert new scores
+        const participants = await getParticipants();
+        const scores = [];
+
+        for (const participant of participants) {
+            const scoreInput = document.getElementById(`edit-score-${participant.id}`);
+            const descInput = document.getElementById(`edit-desc-${participant.id}`);
+            const score = parseInt(scoreInput.value) || 0;
+            const description = descInput.value.trim();
+
+            // Validate score range
+            if (score < -3 || score > 3) {
+                throw new Error(`El puntaje de ${participant.name} debe estar entre -3 y +3`);
+            }
+
+            if (score !== 0 || description) {
+                scores.push({
+                    event_id: eventId,
+                    participant_id: participant.id,
+                    score: score,
+                    description: description
+                });
+            }
         }
 
-        // Find and update or create event score
-        const eventScoreIndex = participant.events.findIndex(e => e.eventId === eventId);
-        if (eventScoreIndex >= 0) {
-            participant.events[eventScoreIndex].score = score;
-            participant.events[eventScoreIndex].description = description;
-        } else {
-            participant.events.push({
-                eventId: eventId,
-                score: score,
-                description: description
-            });
+        if (scores.length > 0) {
+            const { error: scoresError } = await supabase
+                .from('event_scores')
+                .insert(scores);
+
+            if (scoresError) throw scoresError;
         }
-    });
 
-    saveData();
-    renderRanking();
-    renderEvents();
-    updateStats();
-    hideEditEventModal();
+        hideEditEventModal();
+        showNotification('✅ Juntada actualizada correctamente');
 
-    showNotification('✅ Juntada actualizada correctamente');
+    } catch (error) {
+        console.error('Error updating event:', error);
+        alert('❌ ' + error.message);
+    }
 }
 
-function requestDeleteEvent(eventId) {
+async function requestDeleteEvent(eventId) {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión para eliminar eventos');
         return;
@@ -589,25 +758,26 @@ function requestDeleteEvent(eventId) {
     deleteEvent(eventId);
 }
 
-function deleteEvent(eventId) {
+async function deleteEvent(eventId) {
     if (!confirm('⚠️ ¿Estás seguro de que quieres eliminar esta juntada?')) {
         return;
     }
 
-    // Remove event
-    appData.events = appData.events.filter(e => e.id !== eventId);
+    try {
+        // Delete event (scores will be deleted automatically due to CASCADE)
+        const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', eventId);
 
-    // Remove event scores from all participants
-    appData.participants.forEach(participant => {
-        participant.events = participant.events.filter(e => e.eventId !== eventId);
-    });
+        if (error) throw error;
 
-    saveData();
-    renderRanking();
-    renderEvents();
-    updateStats();
+        showNotification('✅ Juntada eliminada correctamente');
 
-    showNotification('✅ Juntada eliminada correctamente');
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        alert('❌ Error al eliminar evento: ' + error.message);
+    }
 }
 
 // ===================================
@@ -625,43 +795,31 @@ function hideReglamentoModal() {
 }
 
 // ===================================
-// Utility Functions
-// ===================================
-
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-function showNotification(message) {
-    setTimeout(() => {
-        alert(message);
-    }, 100);
-}
-
-// ===================================
 // Excel Export Functions
 // ===================================
 
-function exportToExcel() {
+async function exportToExcel() {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión para exportar datos');
         return;
     }
 
     try {
-        // Create a new workbook
+        const participants = await getParticipants();
+        const events = await getEvents();
+        const allScores = await getEventScores();
+
+        // Create workbook
         const wb = XLSX.utils.book_new();
 
         // ===== HOJA 1: Ranking =====
-        const rankingData = getRankingData();
+        const rankingData = await getRankingData();
         const rankingSheet = [];
 
-        // Headers
-        rankingSheet.push(['RANKING TABLA CAVANI 2025']);
+        rankingSheet.push(['RANKING TABLA CAVANI 2026']);
         rankingSheet.push([]);
         rankingSheet.push(['Posición', 'Nombre', 'Puntaje Total']);
 
-        // Data
         rankingData.forEach((item, index) => {
             rankingSheet.push([
                 `#${index + 1}`,
@@ -671,8 +829,6 @@ function exportToExcel() {
         });
 
         const wsRanking = XLSX.utils.aoa_to_sheet(rankingSheet);
-
-        // Style the ranking sheet
         if (!wsRanking['!cols']) wsRanking['!cols'] = [];
         wsRanking['!cols'][0] = { wch: 12 };
         wsRanking['!cols'][1] = { wch: 25 };
@@ -680,42 +836,35 @@ function exportToExcel() {
 
         XLSX.utils.book_append_sheet(wb, wsRanking, 'Ranking');
 
-        // ===== HOJA 2: Eventos Detallados =====
+        // ===== HOJA 2: Historial de Juntadas =====
         const eventsSheet = [];
-
         eventsSheet.push(['HISTORIAL DE JUNTADAS']);
         eventsSheet.push([]);
 
-        if (appData.events.length === 0) {
+        if (events.length === 0) {
             eventsSheet.push(['No hay juntadas registradas']);
         } else {
-            // Sort events by date
-            const sortedEvents = [...appData.events].sort((a, b) =>
-                new Date(b.date) - new Date(a.date)
-            );
-
-            sortedEvents.forEach((event, eventIndex) => {
+            events.forEach((event, eventIndex) => {
                 const formattedDate = new Date(event.date).toLocaleDateString('es-AR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric'
                 });
 
-                // Event header
                 eventsSheet.push([`JUNTADA #${eventIndex + 1}: ${event.name}`]);
                 eventsSheet.push(['Fecha:', formattedDate]);
-                eventsSheet.push(['Puntos Disputados:', event.totalPointsDisputed || 0]);
+                eventsSheet.push(['Puntos Disputados:', event.total_points_disputed || 0]);
                 eventsSheet.push([]);
                 eventsSheet.push(['Participante', 'Puntaje', 'Descripción']);
 
-                // Participant scores for this event
-                appData.participants.forEach(participant => {
-                    const eventScore = participant.events.find(e => e.eventId === event.id);
-                    if (eventScore && (eventScore.score !== 0 || eventScore.description)) {
+                const eventScores = allScores.filter(s => s.event_id === event.id);
+                eventScores.forEach(es => {
+                    const participant = participants.find(p => p.id === es.participant_id);
+                    if (participant && (es.score !== 0 || es.description)) {
                         eventsSheet.push([
                             participant.name,
-                            eventScore.score > 0 ? `+${eventScore.score}` : eventScore.score,
-                            eventScore.description || '-'
+                            es.score > 0 ? `+${es.score}` : es.score,
+                            es.description || '-'
                         ]);
                     }
                 });
@@ -726,8 +875,6 @@ function exportToExcel() {
         }
 
         const wsEvents = XLSX.utils.aoa_to_sheet(eventsSheet);
-
-        // Style the events sheet
         if (!wsEvents['!cols']) wsEvents['!cols'] = [];
         wsEvents['!cols'][0] = { wch: 25 };
         wsEvents['!cols'][1] = { wch: 12 };
@@ -735,16 +882,15 @@ function exportToExcel() {
 
         XLSX.utils.book_append_sheet(wb, wsEvents, 'Historial Juntadas');
 
-        // ===== HOJA 3: Resumen General =====
+        // ===== HOJA 3: Resumen =====
         const summarySheet = [];
-
-        summarySheet.push(['RESUMEN GENERAL TABLA CAVANI 2025']);
+        summarySheet.push(['RESUMEN GENERAL TABLA CAVANI 2026']);
         summarySheet.push([]);
-        summarySheet.push(['Total de Participantes:', appData.participants.length]);
-        summarySheet.push(['Total de Juntadas:', appData.events.length]);
+        summarySheet.push(['Total de Participantes:', participants.length]);
+        summarySheet.push(['Total de Juntadas:', events.length]);
 
-        const totalPoints = appData.events.reduce((sum, event) =>
-            sum + (event.totalPointsDisputed || 0), 0
+        const totalPoints = events.reduce((sum, event) =>
+            sum + (event.total_points_disputed || 0), 0
         );
         summarySheet.push(['Total Puntos Disputados:', totalPoints]);
         summarySheet.push([]);
@@ -755,9 +901,10 @@ function exportToExcel() {
         summarySheet.push([]);
         summarySheet.push(['Participante', 'Juntadas Jugadas', 'Puntaje Total', 'Promedio por Juntada']);
 
-        appData.participants.forEach(participant => {
-            const totalScore = calculateParticipantScore(participant.id);
-            const eventsPlayed = participant.events.filter(e => e.score !== 0).length;
+        for (const participant of participants) {
+            const totalScore = await calculateParticipantScore(participant.id);
+            const participantScores = allScores.filter(s => s.participant_id === participant.id && s.score !== 0);
+            const eventsPlayed = participantScores.length;
             const average = eventsPlayed > 0 ? (totalScore / eventsPlayed).toFixed(2) : 0;
 
             summarySheet.push([
@@ -766,11 +913,9 @@ function exportToExcel() {
                 totalScore,
                 average
             ]);
-        });
+        }
 
         const wsSummary = XLSX.utils.aoa_to_sheet(summarySheet);
-
-        // Style the summary sheet
         if (!wsSummary['!cols']) wsSummary['!cols'] = [];
         wsSummary['!cols'][0] = { wch: 25 };
         wsSummary['!cols'][1] = { wch: 20 };
@@ -779,19 +924,28 @@ function exportToExcel() {
 
         XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
 
-        // Generate filename with current date
+        // Generate filename
         const today = new Date().toISOString().split('T')[0];
-        const filename = `TablaCavani_2025_${today}.xlsx`;
+        const filename = `TablaCavani_2026_${today}.xlsx`;
 
-        // Write and download the file
         XLSX.writeFile(wb, filename);
 
         showNotification('✅ Excel exportado correctamente');
 
     } catch (error) {
-        console.error('Error exportando Excel:', error);
+        console.error('Error exporting Excel:', error);
         alert('❌ Error al exportar Excel: ' + error.message);
     }
+}
+
+// ===================================
+// Utility Functions
+// ===================================
+
+function showNotification(message) {
+    setTimeout(() => {
+        alert(message);
+    }, 100);
 }
 
 // ===================================

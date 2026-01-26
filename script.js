@@ -1,61 +1,23 @@
 // ===================================
-// TABLA CAVANI 2026 - Main Script
+// TAB LACAVANI 2026 - Supabase Version
 // ===================================
 
-// Password Protection with Obfuscation
-// Using Base64 + simple character shifting to hide from simple inspection
-const PROTECTED_KEY = btoa('123Admin987').split('').map(c =>
-    String.fromCharCode(c.charCodeAt(0) + 3)
-).join('');
-
-// Data Structure
-let appData = {
-    participants: [],
-    events: [],
-    globalStats: {
-        totalPointsDisputed: 0
-    }
-};
+// PIN correcto
+const CORRECT_PIN = '270701';
 
 // Login state
 let isLoggedIn = false;
-
-// Current action context for password modal
-let currentAction = null;
-let currentEventId = null;
 
 // ===================================
 // Initialization
 // ===================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadData();
+document.addEventListener('DOMContentLoaded', async () => {
     checkLoginStatus();
     updateLoginUI();
-    renderRanking();
-    renderEvents();
-    updateStats();
+    await loadAndRenderAll();
     initializeEventListeners();
 });
-
-// ===================================
-// Data Management
-// ===================================
-
-function loadData() {
-    const savedData = localStorage.getItem('tablaCavani2026');
-    if (savedData) {
-        try {
-            appData = JSON.parse(savedData);
-        } catch (e) {
-            console.error('Error loading data:', e);
-        }
-    }
-}
-
-function saveData() {
-    localStorage.setItem('tablaCavani2026', JSON.stringify(appData));
-}
 
 // ===================================
 // Login Management
@@ -109,108 +71,156 @@ function handleLoginLogout() {
             logout();
         }
     } else {
-        showPasswordModal('login');
+        showLoginModal();
     }
 }
 
-// ===================================
-// Password Protection
-// ===================================
-
-function verifyPassword(input) {
-    // Simple PIN check
-    return input === '270701';
-}
-
-function showPasswordModal(action, eventId = null) {
-    currentAction = action;
-    currentEventId = eventId;
+function showLoginModal() {
     const modal = document.getElementById('passwordModal');
-    const input = document.getElementById('pinInput');
-    input.value = '';
+    const pinInput = document.getElementById('pinInput');
+    pinInput.value = '';
     modal.classList.add('active');
-    input.focus();
+    pinInput.focus();
 }
 
-function hidePasswordModal() {
+function hideLoginModal() {
     const modal = document.getElementById('passwordModal');
     modal.classList.remove('active');
-    currentAction = null;
-    currentEventId = null;
 }
 
-function handlePasswordSubmit() {
-    const input = document.getElementById('pinInput');
-    const password = input.value;
+function handleLogin() {
+    const pinInput = document.getElementById('pinInput');
+    const pin = pinInput.value.trim();
 
-    console.log('🔍 PIN ingresado:', password);
-    console.log('🔍 Verificando...', verifyPassword(password));
-    console.log('🔍 currentAction:', currentAction);
-
-    if (verifyPassword(password)) {
-        console.log('✅ PIN correcto! Cerrando modal y ejecutando acción...');
-        executeAction();      // Primero ejecutar la acción
-        hidePasswordModal();  // Después cerrar el modal
+    if (pin === CORRECT_PIN) {
+        login();
+        hideLoginModal();
     } else {
-        console.log('❌ PIN incorrecto');
-        alert('❌ Contraseña incorrecta');
-        input.value = '';
-        input.focus();
+        alert('❌ PIN incorrecto');
+        pinInput.value = '';
+        pinInput.focus();
     }
 }
 
-function executeAction() {
-    console.log('🎯 Ejecutando acción:', currentAction);
-    switch (currentAction) {
-        case 'login':
-            console.log('🔐 Caso: login');
-            login();
-            break;
-        case 'addParticipant':
-            showAddParticipantModal();
-            break;
-        case 'addEvent':
-            showAddEventModal();
-            break;
-        case 'editEvent':
-            showEditEventModal(currentEventId);
-            break;
-        case 'deleteEvent':
-            deleteEvent(currentEventId);
-            break;
-        default:
-            console.log('⚠️ Acción no reconocida:', currentAction);
+// ===================================
+// Supabase Data Functions
+// ===================================
+
+async function loadAndRenderAll() {
+    await renderRanking();
+    await renderEvents();
+    await updateStats();
+}
+
+async function getParticipants() {
+    if (!supabase) {
+        console.error('Supabase not initialized');
+        return [];
     }
+
+    const { data, error } = await supabase
+        .from('participants')
+        .select('*')
+        .order('name');
+
+    if (error) {
+        console.error('Error loading participants:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
+async function getEvents() {
+    if (!supabase) {
+        console.error('Supabase not initialized');
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
+
+    if (error) {
+        console.error('Error loading events:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
+async function getEventScores() {
+    if (!supabase) {
+        console.error('Supabase not initialized');
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('event_scores')
+        .select('*');
+
+    if (error) {
+        console.error('Error loading event scores:', error);
+        return [];
+    }
+
+    return data || [];
 }
 
 // ===================================
 // Ranking Functions
 // ===================================
 
-function calculateParticipantScore(participantId) {
-    const participant = appData.participants.find(p => p.id === participantId);
-    if (!participant) return 0;
+async function calculateParticipantScore(participantId) {
+    if (!supabase) return 0;
 
-    let totalScore = participant.startingPoints || 0;
+    const { data: scores, error: scoresError } = await supabase
+        .from('event_scores')
+        .select('score')
+        .eq('participant_id', participantId);
 
-    participant.events.forEach(eventScore => {
-        totalScore += eventScore.score;
-    });
+    if (scoresError) {
+        console.error('Error calculating score:', scoresError);
+        return 0;
+    }
 
-    return totalScore;
+    const eventScores = scores.reduce((sum, s) => sum + (s.score || 0), 0);
+
+    // Get starting points
+    const { data: participant, error: participantError } = await supabase
+        .from('participants')
+        .select('starting_points')
+        .eq('id', participantId)
+        .single();
+
+    if (participantError) {
+        console.error('Error getting participant:', participantError);
+        return eventScores;
+    }
+
+    const startingPoints = participant?.starting_points || 0;
+
+    return startingPoints + eventScores;
 }
 
-function getRankingData() {
-    return appData.participants.map(p => ({
-        id: p.id,
-        name: p.name,
-        score: calculateParticipantScore(p.id)
-    })).sort((a, b) => b.score - a.score);
+async function getRankingData() {
+    const participants = await getParticipants();
+
+    const rankingData = await Promise.all(
+        participants.map(async (p) => ({
+            id: p.id,
+            name: p.name,
+            score: await calculateParticipantScore(p.id)
+        }))
+    );
+
+    return rankingData.sort((a, b) => b.score - a.score);
 }
 
-function renderRanking() {
+async function renderRanking() {
     const container = document.getElementById('rankingTable');
-    const rankingData = getRankingData();
+    const rankingData = await getRankingData();
 
     if (rankingData.length === 0) {
         container.innerHTML = `
@@ -241,10 +251,11 @@ function renderRanking() {
 // Event Functions
 // ===================================
 
-function renderEvents() {
+async function renderEvents() {
     const container = document.getElementById('eventsList');
+    const events = await getEvents();
 
-    if (appData.events.length === 0) {
+    if (events.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <p>📅 No hay juntadas registradas</p>
@@ -254,26 +265,47 @@ function renderEvents() {
         return;
     }
 
-    // Sort events by date (newest first)
-    const sortedEvents = [...appData.events].sort((a, b) =>
-        new Date(b.date) - new Date(a.date)
-    );
+    const participants = await getParticipants();
+    const allScores = await getEventScores();
 
-    container.innerHTML = sortedEvents.map(event => {
+    const disabledAttr = !isLoggedIn ? 'disabled' : '';
+
+    const eventsHTML = await Promise.all(events.map(async (event) => {
         const formattedDate = new Date(event.date).toLocaleDateString('es-AR', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
         });
 
-        const participantScores = appData.participants.map(participant => {
-            const eventScore = participant.events.find(e => e.eventId === event.id);
-            return {
-                name: participant.name,
-                score: eventScore ? eventScore.score : 0,
-                description: eventScore ? eventScore.description : ''
-            };
-        }).filter(ps => ps.score !== 0 || ps.description);
+        // Get scores for this event
+        const eventScores = allScores.filter(s => s.event_id === event.id);
+
+        let participantScoresHTML = '';
+        if (eventScores.length > 0) {
+            const scoresHTML = eventScores
+                .filter(es => es.score !== 0 || es.description)
+                .map(es => {
+                    const participant = participants.find(p => p.id === es.participant_id);
+                    if (!participant) return '';
+
+                    const scoreClass = es.score > 0 ? 'positive' : es.score < 0 ? 'negative' : 'zero';
+                    return `
+                        <div class="participant-score-item">
+                            <div class="participant-score-header">
+                                <span class="participant-score-name">${participant.name}</span>
+                                <span class="participant-score-value ${scoreClass}">
+                                    ${es.score > 0 ? '+' : ''}${es.score}
+                                </span>
+                            </div>
+                            ${es.description ? `<div class="participant-score-description">${es.description}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+            if (scoresHTML) {
+                participantScoresHTML = `<div class="event-participants">${scoresHTML}</div>`;
+            }
+        }
 
         return `
             <div class="event-card">
@@ -282,59 +314,51 @@ function renderEvents() {
                         <h3>${event.name}</h3>
                         <div class="event-meta">
                             <span>📅 ${formattedDate}</span>
-                            <span>🏆 ${event.totalPointsDisputed} puntos</span>
+                            <span>🏆 ${event.total_points_disputed || 0} puntos</span>
                         </div>
                     </div>
                     <div class="event-actions">
-                        <button class="btn btn-small btn-primary" onclick="requestEditEvent('${event.id}')">
+                        <button class="btn btn-small btn-primary" onclick="requestEditEvent('${event.id}')" ${disabledAttr}>
                             ✏️ Editar
                         </button>
-                        <button class="btn btn-small btn-danger" onclick="requestDeleteEvent('${event.id}')">
+                        <button class="btn btn-small btn-danger" onclick="requestDeleteEvent('${event.id}')" ${disabledAttr}>
                             🗑️ Eliminar
                         </button>
                     </div>
                 </div>
-                ${participantScores.length > 0 ? `
-                    <div class="event-participants">
-                        ${participantScores.map(ps => `
-                            <div class="participant-score-item">
-                                <div class="participant-score-header">
-                                    <span class="participant-score-name">${ps.name}</span>
-                                    <span class="participant-score-value ${ps.score > 0 ? 'positive' : ps.score < 0 ? 'negative' : 'zero'}">
-                                        ${ps.score > 0 ? '+' : ''}${ps.score}
-                                    </span>
-                                </div>
-                                ${ps.description ? `<div class="participant-score-description">${ps.description}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                ${participantScoresHTML}
             </div>
         `;
-    }).join('');
+    }));
+
+    container.innerHTML = eventsHTML.join('');
 }
 
 // ===================================
 // Stats Functions
 // ===================================
 
-function updateStats() {
-    // Calculate total points disputed
-    const totalPoints = appData.events.reduce((sum, event) =>
-        sum + (event.totalPointsDisputed || 0), 0
+async function updateStats() {
+    const events = await getEvents();
+
+    const totalPoints = events.reduce((sum, event) =>
+        sum + (event.total_points_disputed || 0), 0
     );
 
-    appData.globalStats.totalPointsDisputed = totalPoints;
-
     document.getElementById('totalPointsDisputed').textContent = totalPoints;
-    document.getElementById('totalEvents').textContent = appData.events.length;
+    document.getElementById('totalEvents').textContent = events.length;
 }
 
 // ===================================
 // Participant Functions
 // ===================================
 
-function showAddParticipantModal() {
+async function showAddParticipantModal() {
+    if (!isLoggedIn) {
+        alert('❌ Debes iniciar sesión primero');
+        return;
+    }
+
     const modal = document.getElementById('addParticipantModal');
     document.getElementById('participantName').value = '';
     document.getElementById('startingPoints').value = '0';
@@ -347,7 +371,7 @@ function hideAddParticipantModal() {
     modal.classList.remove('active');
 }
 
-function saveParticipant() {
+async function saveParticipant() {
     const name = document.getElementById('participantName').value.trim();
     const startingPoints = parseInt(document.getElementById('startingPoints').value) || 0;
 
@@ -356,39 +380,67 @@ function saveParticipant() {
         return;
     }
 
-    // Check for duplicate names
-    if (appData.participants.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        alert('❌ Ya existe un participante con ese nombre');
+    if (!isLoggedIn) {
+        alert('❌ Debes iniciar sesión para agregar participantes');
         return;
     }
 
-    const newParticipant = {
-        id: generateId(),
-        name: name,
-        startingPoints: startingPoints,
-        events: []
-    };
+    if (!supabase) {
+        alert('❌ Supabase no está configurado');
+        return;
+    }
 
-    appData.participants.push(newParticipant);
-    saveData();
-    renderRanking();
-    hideAddParticipantModal();
+    try {
+        // Check for duplicates
+        const { data: existing } = await supabase
+            .from('participants')
+            .select('id')
+            .ilike('name', name)
+            .single();
 
-    // Show success message
-    showNotification('✅ Participante agregado correctamente');
+        if (existing) {
+            alert('❌ Ya existe un participante con ese nombre');
+            return;
+        }
+
+        // Insert participant
+        const { error } = await supabase
+            .from('participants')
+            .insert([{
+                name: name,
+                starting_points: startingPoints
+            }]);
+
+        if (error) throw error;
+
+        hideAddParticipantModal();
+        alert('✅ Participante agregado correctamente');
+        await loadAndRenderAll();
+
+    } catch (error) {
+        console.error('Error adding participant:', error);
+        alert('❌ Error al agregar participante: ' + error.message);
+    }
 }
 
 // ===================================
 // Event CRUD Functions
 // ===================================
 
-function showAddEventModal() {
-    const modal = document.getElementById('addEventModal');
+async function showAddEventModal() {
+    if (!isLoggedIn) {
+        alert('❌ Debes iniciar sesión primero');
+        return;
+    }
 
-    if (appData.participants.length === 0) {
+    const participants = await getParticipants();
+
+    if (participants.length === 0) {
         alert('❌ Primero debes agregar participantes');
         return;
     }
+
+    const modal = document.getElementById('addEventModal');
 
     // Reset form
     document.getElementById('eventName').value = '';
@@ -396,7 +448,24 @@ function showAddEventModal() {
     document.getElementById('eventPoints').value = '1';
 
     // Populate participant scores
-    renderParticipantScoresForm('participantScores');
+    const container = document.getElementById('participantScores');
+    container.innerHTML = participants.map(p => `
+        <div class="participant-score-form">
+            <h4>${p.name}</h4>
+            <div class="score-input-group">
+                <div class="form-group mb-0">
+                    <label for="score-${p.id}">Puntaje (-3 a +3)</label>
+                    <input type="number" id="score-${p.id}" class="input-field" 
+                           min="-3" max="3" value="0" step="1">
+                </div>
+                <div class="form-group mb-0">
+                    <label for="desc-${p.id}">Descripción</label>
+                    <textarea id="desc-${p.id}" class="input-field" 
+                              placeholder="Opcional: razón del puntaje"></textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
 
     modal.classList.add('active');
     document.getElementById('eventName').focus();
@@ -407,29 +476,7 @@ function hideAddEventModal() {
     modal.classList.remove('active');
 }
 
-function renderParticipantScoresForm(containerId) {
-    const container = document.getElementById(containerId);
-
-    container.innerHTML = appData.participants.map(participant => `
-        <div class="participant-score-form">
-            <h4>${participant.name}</h4>
-            <div class="score-input-group">
-                <div class="form-group mb-0">
-                    <label for="score-${participant.id}">Puntaje (-3 a +3)</label>
-                    <input type="number" id="score-${participant.id}" class="input-field" 
-                           min="-3" max="3" value="0" step="1">
-                </div>
-                <div class="form-group mb-0">
-                    <label for="desc-${participant.id}">Descripción</label>
-                    <textarea id="desc-${participant.id}" class="input-field" 
-                              placeholder="Opcional: razón del puntaje"></textarea>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function saveEvent() {
+async function saveEvent() {
     const name = document.getElementById('eventName').value.trim();
     const date = document.getElementById('eventDate').value;
     const totalPointsDisputed = parseInt(document.getElementById('eventPoints').value) || 0;
@@ -444,61 +491,75 @@ function saveEvent() {
         return;
     }
 
-    const eventId = generateId();
+    if (!isLoggedIn) {
+        alert('❌ Debes iniciar sesión para agregar eventos');
+        return;
+    }
 
-    // Collect participant scores
-    const participantScores = [];
-    appData.participants.forEach(participant => {
-        const scoreInput = document.getElementById(`score-${participant.id}`);
-        const descInput = document.getElementById(`desc-${participant.id}`);
-        const score = parseInt(scoreInput.value) || 0;
-        const description = descInput.value.trim();
+    if (!supabase) {
+        alert('❌ Supabase no está configurado');
+        return;
+    }
 
-        // Validate score range
-        if (score < -3 || score > 3) {
-            alert(`❌ El puntaje de ${participant.name} debe estar entre -3 y +3`);
-            throw new Error('Invalid score range');
+    try {
+        const participants = await getParticipants();
+
+        // Create event first
+        const { data: event, error: eventError } = await supabase
+            .from('events')
+            .insert([{
+                name: name,
+                date: date,
+                total_points_disputed: totalPointsDisputed
+            }])
+            .select()
+            .single();
+
+        if (eventError) throw eventError;
+
+        // Collect and insert participant scores
+        const scores = [];
+        for (const participant of participants) {
+            const scoreInput = document.getElementById(`score-${participant.id}`);
+            const descInput = document.getElementById(`desc-${participant.id}`);
+            const score = parseInt(scoreInput.value) || 0;
+            const description = descInput.value.trim();
+
+            // Validate score range
+            if (score < -3 || score > 3) {
+                throw new Error(`El puntaje de ${participant.name} debe estar entre -3 y +3`);
+            }
+
+            // Only insert if score is not 0 or has description
+            if (score !== 0 || description) {
+                scores.push({
+                    event_id: event.id,
+                    participant_id: participant.id,
+                    score: score,
+                    description: description
+                });
+            }
         }
 
-        participantScores.push({
-            participantId: participant.id,
-            score: score,
-            description: description
-        });
-    });
+        if (scores.length > 0) {
+            const { error: scoresError } = await supabase
+                .from('event_scores')
+                .insert(scores);
 
-    // Create event
-    const newEvent = {
-        id: eventId,
-        name: name,
-        date: date,
-        totalPointsDisputed: totalPointsDisputed
-    };
-
-    appData.events.push(newEvent);
-
-    // Add scores to participants
-    participantScores.forEach(ps => {
-        const participant = appData.participants.find(p => p.id === ps.participantId);
-        if (participant) {
-            participant.events.push({
-                eventId: eventId,
-                score: ps.score,
-                description: ps.description
-            });
+            if (scoresError) throw scoresError;
         }
-    });
 
-    saveData();
-    renderRanking();
-    renderEvents();
-    updateStats();
-    hideAddEventModal();
+        hideAddEventModal();
+        alert('✅ Juntada agregada correctamente');
+        await loadAndRenderAll();
 
-    showNotification('✅ Juntada agregada correctamente');
+    } catch (error) {
+        console.error('Error adding event:', error);
+        alert('❌ ' + error.message);
+    }
 }
 
-function requestEditEvent(eventId) {
+async function requestEditEvent(eventId) {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión para editar eventos');
         return;
@@ -506,46 +567,76 @@ function requestEditEvent(eventId) {
     showEditEventModal(eventId);
 }
 
-function showEditEventModal(eventId) {
-    const event = appData.events.find(e => e.id === eventId);
-    if (!event) return;
+async function showEditEventModal(eventId) {
+    if (!supabase) {
+        alert('❌ Supabase no está configurado');
+        return;
+    }
 
-    const modal = document.getElementById('editEventModal');
+    try {
+        const { data: event, error: eventError } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', eventId)
+            .single();
 
-    // Populate form with event data
-    document.getElementById('editEventName').value = event.name;
-    document.getElementById('editEventDate').value = event.date;
-    document.getElementById('editEventPoints').value = event.totalPointsDisputed;
+        if (eventError) throw eventError;
+        if (!event) {
+            alert('❌ Evento no encontrado');
+            return;
+        }
 
-    // Populate participant scores
-    const container = document.getElementById('editParticipantScores');
-    container.innerHTML = appData.participants.map(participant => {
-        const eventScore = participant.events.find(e => e.eventId === eventId);
-        const score = eventScore ? eventScore.score : 0;
-        const description = eventScore ? eventScore.description : '';
+        const modal = document.getElementById('editEventModal');
 
-        return `
-            <div class="participant-score-form">
-                <h4>${participant.name}</h4>
-                <div class="score-input-group">
-                    <div class="form-group mb-0">
-                        <label for="edit-score-${participant.id}">Puntaje (-3 a +3)</label>
-                        <input type="number" id="edit-score-${participant.id}" class="input-field" 
-                               min="-3" max="3" value="${score}" step="1">
-                    </div>
-                    <div class="form-group mb-0">
-                        <label for="edit-desc-${participant.id}">Descripción</label>
-                        <textarea id="edit-desc-${participant.id}" class="input-field" 
-                                  placeholder="Opcional: razón del puntaje">${description}</textarea>
+        // Populate form
+        document.getElementById('editEventName').value = event.name;
+        document.getElementById('editEventDate').value = event.date;
+        document.getElementById('editEventPoints').value = event.total_points_disputed || 0;
+
+        // Get existing scores
+        const { data: eventScores } = await supabase
+            .from('event_scores')
+            .select('*')
+            .eq('event_id', eventId);
+
+        const scoresMap = {};
+        if (eventScores) {
+            eventScores.forEach(es => {
+                scoresMap[es.participant_id] = es;
+            });
+        }
+
+        // Populate participant scores
+        const participants = await getParticipants();
+        const container = document.getElementById('editParticipantScores');
+        container.innerHTML = participants.map(p => {
+            const scoreData = scoresMap[p.id] || { score: 0, description: '' };
+            return `
+                <div class="participant-score-form">
+                    <h4>${p.name}</h4>
+                    <div class="score-input-group">
+                        <div class="form-group mb-0">
+                            <label for="edit-score-${p.id}">Puntaje (-3 a +3)</label>
+                            <input type="number" id="edit-score-${p.id}" class="input-field" 
+                                   min="-3" max="3" value="${scoreData.score}" step="1">
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="edit-desc-${p.id}">Descripción</label>
+                            <textarea id="edit-desc-${p.id}" class="input-field" 
+                                      placeholder="Opcional: razón del puntaje">${scoreData.description || ''}</textarea>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
 
-    // Store current event ID for update
-    modal.dataset.eventId = eventId;
-    modal.classList.add('active');
+        modal.dataset.eventId = eventId;
+        modal.classList.add('active');
+
+    } catch (error) {
+        console.error('Error showing edit modal:', error);
+        alert('❌ Error al abrir formulario: ' + error.message);
+    }
 }
 
 function hideEditEventModal() {
@@ -554,12 +645,14 @@ function hideEditEventModal() {
     delete modal.dataset.eventId;
 }
 
-function updateEvent() {
+async function updateEvent() {
     const modal = document.getElementById('editEventModal');
     const eventId = modal.dataset.eventId;
-    const event = appData.events.find(e => e.id === eventId);
 
-    if (!event) return;
+    if (!eventId) {
+        alert('❌ Error: ID de evento no encontrado');
+        return;
+    }
 
     const name = document.getElementById('editEventName').value.trim();
     const date = document.getElementById('editEventDate').value;
@@ -575,48 +668,76 @@ function updateEvent() {
         return;
     }
 
-    // Update event
-    event.name = name;
-    event.date = date;
-    event.totalPointsDisputed = totalPointsDisputed;
+    if (!supabase) {
+        alert('❌ Supabase no está configurado');
+        return;
+    }
 
-    // Update participant scores
-    appData.participants.forEach(participant => {
-        const scoreInput = document.getElementById(`edit-score-${participant.id}`);
-        const descInput = document.getElementById(`edit-desc-${participant.id}`);
-        const score = parseInt(scoreInput.value) || 0;
-        const description = descInput.value.trim();
+    try {
+        // Update event
+        const { error: eventError } = await supabase
+            .from('events')
+            .update({
+                name: name,
+                date: date,
+                total_points_disputed: totalPointsDisputed
+            })
+            .eq('id', eventId);
 
-        // Validate score range
-        if (score < -3 || score > 3) {
-            alert(`❌ El puntaje de ${participant.name} debe estar entre -3 y +3`);
-            throw new Error('Invalid score range');
+        if (eventError) throw eventError;
+
+        // Delete existing scores and insert new ones
+        const { error: deleteError } = await supabase
+            .from('event_scores')
+            .delete()
+            .eq('event_id', eventId);
+
+        if (deleteError) throw deleteError;
+
+        // Collect and insert new scores
+        const participants = await getParticipants();
+        const scores = [];
+
+        for (const participant of participants) {
+            const scoreInput = document.getElementById(`edit-score-${participant.id}`);
+            const descInput = document.getElementById(`edit-desc-${participant.id}`);
+            const score = parseInt(scoreInput.value) || 0;
+            const description = descInput.value.trim();
+
+            // Validate score range
+            if (score < -3 || score > 3) {
+                throw new Error(`El puntaje de ${participant.name} debe estar entre -3 y +3`);
+            }
+
+            if (score !== 0 || description) {
+                scores.push({
+                    event_id: eventId,
+                    participant_id: participant.id,
+                    score: score,
+                    description: description
+                });
+            }
         }
 
-        // Find and update or create event score
-        const eventScoreIndex = participant.events.findIndex(e => e.eventId === eventId);
-        if (eventScoreIndex >= 0) {
-            participant.events[eventScoreIndex].score = score;
-            participant.events[eventScoreIndex].description = description;
-        } else {
-            participant.events.push({
-                eventId: eventId,
-                score: score,
-                description: description
-            });
+        if (scores.length > 0) {
+            const { error: scoresError } = await supabase
+                .from('event_scores')
+                .insert(scores);
+
+            if (scoresError) throw scoresError;
         }
-    });
 
-    saveData();
-    renderRanking();
-    renderEvents();
-    updateStats();
-    hideEditEventModal();
+        hideEditEventModal();
+        alert('✅ Juntada actualizada correctamente');
+        await loadAndRenderAll();
 
-    showNotification('✅ Juntada actualizada correctamente');
+    } catch (error) {
+        console.error('Error updating event:', error);
+        alert('❌ ' + error.message);
+    }
 }
 
-function requestDeleteEvent(eventId) {
+async function requestDeleteEvent(eventId) {
     if (!isLoggedIn) {
         alert('❌ Debes iniciar sesión para eliminar eventos');
         return;
@@ -624,25 +745,32 @@ function requestDeleteEvent(eventId) {
     deleteEvent(eventId);
 }
 
-function deleteEvent(eventId) {
+async function deleteEvent(eventId) {
     if (!confirm('⚠️ ¿Estás seguro de que quieres eliminar esta juntada?')) {
         return;
     }
 
-    // Remove event
-    appData.events = appData.events.filter(e => e.id !== eventId);
+    if (!supabase) {
+        alert('❌ Supabase no está configurado');
+        return;
+    }
 
-    // Remove event scores from all participants
-    appData.participants.forEach(participant => {
-        participant.events = participant.events.filter(e => e.eventId !== eventId);
-    });
+    try {
+        // Delete event (scores will be deleted automatically due to CASCADE)
+        const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', eventId);
 
-    saveData();
-    renderRanking();
-    renderEvents();
-    updateStats();
+        if (error) throw error;
 
-    showNotification('✅ Juntada eliminada correctamente');
+        alert('✅ Juntada eliminada correctamente');
+        await loadAndRenderAll();
+
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        alert('❌ Error al eliminar evento: ' + error.message);
+    }
 }
 
 // ===================================
@@ -660,16 +788,154 @@ function hideReglamentoModal() {
 }
 
 // ===================================
+// Excel Export Functions
+// ===================================
+
+async function exportToExcel() {
+    if (!isLoggedIn) {
+        alert('❌ Debes iniciar sesión para exportar datos');
+        return;
+    }
+
+    try {
+        const participants = await getParticipants();
+        const events = await getEvents();
+        const allScores = await getEventScores();
+
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+
+        // ===== HOJA 1: Ranking =====
+        const rankingData = await getRankingData();
+        const rankingSheet = [];
+
+        rankingSheet.push(['RANKING TABLA CAVANI 2026']);
+        rankingSheet.push([]);
+        rankingSheet.push(['Posición', 'Nombre', 'Puntaje Total']);
+
+        rankingData.forEach((item, index) => {
+            rankingSheet.push([
+                `#${index + 1}`,
+                item.name,
+                item.score
+            ]);
+        });
+
+        const wsRanking = XLSX.utils.aoa_to_sheet(rankingSheet);
+        if (!wsRanking['!cols']) wsRanking['!cols'] = [];
+        wsRanking['!cols'][0] = { wch: 12 };
+        wsRanking['!cols'][1] = { wch: 25 };
+        wsRanking['!cols'][2] = { wch: 15 };
+
+        XLSX.utils.book_append_sheet(wb, wsRanking, 'Ranking');
+
+        // ===== HOJA 2: Historial de Juntadas =====
+        const eventsSheet = [];
+        eventsSheet.push(['HISTORIAL DE JUNTADAS']);
+        eventsSheet.push([]);
+
+        if (events.length === 0) {
+            eventsSheet.push(['No hay juntadas registradas']);
+        } else {
+            events.forEach((event, eventIndex) => {
+                const formattedDate = new Date(event.date).toLocaleDateString('es-AR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                eventsSheet.push([`JUNTADA #${eventIndex + 1}: ${event.name}`]);
+                eventsSheet.push(['Fecha:', formattedDate]);
+                eventsSheet.push(['Puntos Disputados:', event.total_points_disputed || 0]);
+                eventsSheet.push([]);
+                eventsSheet.push(['Participante', 'Puntaje', 'Descripción']);
+
+                const eventScores = allScores.filter(s => s.event_id === event.id);
+                eventScores.forEach(es => {
+                    const participant = participants.find(p => p.id === es.participant_id);
+                    if (participant && (es.score !== 0 || es.description)) {
+                        eventsSheet.push([
+                            participant.name,
+                            es.score > 0 ? `+${es.score}` : es.score,
+                            es.description || '-'
+                        ]);
+                    }
+                });
+
+                eventsSheet.push([]);
+                eventsSheet.push([]);
+            });
+        }
+
+        const wsEvents = XLSX.utils.aoa_to_sheet(eventsSheet);
+        if (!wsEvents['!cols']) wsEvents['!cols'] = [];
+        wsEvents['!cols'][0] = { wch: 25 };
+        wsEvents['!cols'][1] = { wch: 12 };
+        wsEvents['!cols'][2] = { wch: 50 };
+
+        XLSX.utils.book_append_sheet(wb, wsEvents, 'Historial Juntadas');
+
+        // ===== HOJA 3: Resumen =====
+        const summarySheet = [];
+        summarySheet.push(['RESUMEN GENERAL TABLA CAVANI 2026']);
+        summarySheet.push([]);
+        summarySheet.push(['Total de Participantes:', participants.length]);
+        summarySheet.push(['Total de Juntadas:', events.length]);
+
+        const totalPoints = events.reduce((sum, event) =>
+            sum + (event.total_points_disputed || 0), 0
+        );
+        summarySheet.push(['Total Puntos Disputados:', totalPoints]);
+        summarySheet.push([]);
+        summarySheet.push(['Fecha de Exportación:', new Date().toLocaleString('es-AR')]);
+        summarySheet.push([]);
+        summarySheet.push([]);
+        summarySheet.push(['ESTADÍSTICAS POR PARTICIPANTE']);
+        summarySheet.push([]);
+        summarySheet.push(['Participante', 'Juntadas Jugadas', 'Puntaje Total', 'Promedio por Juntada']);
+
+        for (const participant of participants) {
+            const totalScore = await calculateParticipantScore(participant.id);
+            const participantScores = allScores.filter(s => s.participant_id === participant.id && s.score !== 0);
+            const eventsPlayed = participantScores.length;
+            const average = eventsPlayed > 0 ? (totalScore / eventsPlayed).toFixed(2) : 0;
+
+            summarySheet.push([
+                participant.name,
+                eventsPlayed,
+                totalScore,
+                average
+            ]);
+        }
+
+        const wsSummary = XLSX.utils.aoa_to_sheet(summarySheet);
+        if (!wsSummary['!cols']) wsSummary['!cols'] = [];
+        wsSummary['!cols'][0] = { wch: 25 };
+        wsSummary['!cols'][1] = { wch: 20 };
+        wsSummary['!cols'][2] = { wch: 15 };
+        wsSummary['!cols'][3] = { wch: 22 };
+
+        XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+
+        // Generate filename
+        const today = new Date().toISOString().split('T')[0];
+        const filename = `TablaCavani_2026_${today}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+
+        alert('✅ Excel exportado correctamente');
+
+    } catch (error) {
+        console.error('Error exporting Excel:', error);
+        alert('❌ Error al exportar Excel: ' + error.message);
+    }
+}
+
+// ===================================
 // Utility Functions
 // ===================================
 
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
 function showNotification(message) {
-    // Simple notification using alert for now
-    // Can be enhanced with custom notification UI
     setTimeout(() => {
         alert(message);
     }, 100);
@@ -683,41 +949,26 @@ function initializeEventListeners() {
     // Login button
     document.getElementById('btnLoginEscribano').addEventListener('click', handleLoginLogout);
 
-    // Action buttons
-    document.getElementById('btnAddParticipant').addEventListener('click', () => {
-        if (!isLoggedIn) {
-            alert('❌ Debes iniciar sesión primero');
-            return;
-        }
-        showAddParticipantModal();
+    // Login modal
+    document.getElementById('btnPasswordSubmit').addEventListener('click', handleLogin);
+    document.getElementById('btnPasswordCancel').addEventListener('click', hideLoginModal);
+
+    // PIN input - solo permitir números
+    const pinInput = document.getElementById('pinInput');
+    pinInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
     });
-
-    document.getElementById('btnAddEvent').addEventListener('click', () => {
-        if (!isLoggedIn) {
-            alert('❌ Debes iniciar sesión primero');
-            return;
-        }
-        showAddEventModal();
-    });
-
-    document.getElementById('btnExportExcel').addEventListener('click', () => {
-        if (!isLoggedIn) {
-            alert('❌ Debes iniciar sesión para exportar datos');
-            return;
-        }
-        exportToExcel();
-    });
-
-    document.getElementById('btnReglamento').addEventListener('click', showReglamentoModal);
-
-    // Password modal
-    document.getElementById('btnPasswordSubmit').addEventListener('click', handlePasswordSubmit);
-    document.getElementById('btnPasswordCancel').addEventListener('click', hidePasswordModal);
-    document.getElementById('pinInput').addEventListener('keypress', (e) => {
+    pinInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            handlePasswordSubmit();
+            handleLogin();
         }
     });
+
+    // Action buttons
+    document.getElementById('btnAddParticipant').addEventListener('click', showAddParticipantModal);
+    document.getElementById('btnAddEvent').addEventListener('click', showAddEventModal);
+    document.getElementById('btnExportExcel').addEventListener('click', exportToExcel);
+    document.getElementById('btnReglamento').addEventListener('click', showReglamentoModal);
 
     // Add participant modal
     document.getElementById('btnSaveParticipant').addEventListener('click', saveParticipant);
@@ -752,98 +1003,6 @@ function initializeEventListeners() {
             });
         }
     });
-}
-
-// ===================================
-// Excel Export Function
-// ===================================
-
-function exportToExcel() {
-    try {
-        // Create workbook
-        const wb = XLSX.utils.book_new();
-
-        // ===== HOJA 1: Ranking =====
-        const rankingData = getRankingData();
-        const rankingSheet = [];
-
-        rankingSheet.push(['RANKING TABLA CAVANI 2026']);
-        rankingSheet.push([]);
-        rankingSheet.push(['Posición', 'Nombre', 'Puntaje Total']);
-
-        rankingData.forEach((item, index) => {
-            rankingSheet.push([
-                `#${index + 1}`,
-                item.name,
-                item.score
-            ]);
-        });
-
-        const wsRanking = XLSX.utils.aoa_to_sheet(rankingSheet);
-        if (!wsRanking['!cols']) wsRanking['!cols'] = [];
-        wsRanking['!cols'][0] = { wch: 12 };
-        wsRanking['!cols'][1] = { wch: 25 };
-        wsRanking['!cols'][2] = { wch: 15 };
-
-        XLSX.utils.book_append_sheet(wb, wsRanking, 'Ranking');
-
-        // ===== HOJA 2: Historial de Juntadas =====
-        const eventsSheet = [];
-        eventsSheet.push(['HISTORIAL DE JUNTADAS']);
-        eventsSheet.push([]);
-
-        if (appData.events.length === 0) {
-            eventsSheet.push(['No hay juntadas registradas']);
-        } else {
-            appData.events.forEach((event, eventIndex) => {
-                const formattedDate = new Date(event.date).toLocaleDateString('es-AR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-
-                eventsSheet.push([`JUNTADA #${eventIndex + 1}: ${event.name}`]);
-                eventsSheet.push(['Fecha:', formattedDate]);
-                eventsSheet.push(['Puntos Disputados:', event.totalPointsDisputed || 0]);
-                eventsSheet.push([]);
-                eventsSheet.push(['Participante', 'Puntaje', 'Descripción']);
-
-                appData.participants.forEach(participant => {
-                    const eventScore = participant.events.find(e => e.eventId === event.id);
-                    if (eventScore && (eventScore.score !== 0 || eventScore.description)) {
-                        eventsSheet.push([
-                            participant.name,
-                            eventScore.score > 0 ? `+${eventScore.score}` : eventScore.score,
-                            eventScore.description || '-'
-                        ]);
-                    }
-                });
-
-                eventsSheet.push([]);
-                eventsSheet.push([]);
-            });
-        }
-
-        const wsEvents = XLSX.utils.aoa_to_sheet(eventsSheet);
-        if (!wsEvents['!cols']) wsEvents['!cols'] = [];
-        wsEvents['!cols'][0] = { wch: 25 };
-        wsEvents['!cols'][1] = { wch: 12 };
-        wsEvents['!cols'][2] = { wch: 50 };
-
-        XLSX.utils.book_append_sheet(wb, wsEvents, 'Historial Juntadas');
-
-        // Generate filename
-        const today = new Date().toISOString().split('T')[0];
-        const filename = `TablaCavani_2026_${today}.xlsx`;
-
-        XLSX.writeFile(wb, filename);
-
-        alert('✅ Excel exportado correctamente');
-
-    } catch (error) {
-        console.error('Error exporting Excel:', error);
-        alert('❌ Error al exportar Excel: ' + error.message);
-    }
 }
 
 // Make functions globally available for onclick handlers

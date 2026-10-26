@@ -55,9 +55,15 @@ O simplemente reemplaza `script.js` con el código de Supabase que está en el w
 
 ## 🔐 Login
 
-**PIN:** `270701`
+El escribano entra con una clave de 6 dígitos que **no está en este
+repositorio ni en el código**: es la contraseña de un usuario de Supabase y
+la verifica el servidor de Supabase.
 
-Solo el administrador (con PIN) puede:
+Si la perdiste, se cambia desde el panel de Supabase, en
+Authentication → Users → el usuario escribano → Reset password.
+Ver `INSTRUCCIONES_SUPABASE.md`.
+
+Solo el escribano (con la clave) puede:
 - Agregar participantes
 - Crear/editar/eliminar juntadas
 - Exportar Excel

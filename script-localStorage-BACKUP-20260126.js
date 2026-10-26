@@ -119,7 +119,9 @@ function handleLoginLogout() {
 
 function verifyPassword(input) {
     // Simple PIN check
-    return input === '270701';
+    // Clave retirada: esta version quedo obsoleta. El login real usa
+    // Supabase Auth (ver script.js). No reutilizar este archivo.
+    return false;
 }
 
 function showPasswordModal(action, eventId = null) {

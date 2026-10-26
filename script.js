@@ -2,8 +2,11 @@
 // TAB LACAVANI 2026 - Supabase Version
 // ===================================
 
-// PIN correcto
-const CORRECT_PIN = '270701';
+// El escribano es un usuario real de Supabase. Su clave NO está acá, ni en
+// ningún archivo del repositorio, ni viaja al navegador: la verifica el
+// servidor de Supabase. Esto es solo la casilla de correo con la que se
+// identifica esa cuenta, y no sirve de nada sin la clave.
+const ESCRIBANO_EMAIL = 'escribano@tablacavani.app';
 
 // Login state
 let isLoggedIn = false;
@@ -56,32 +59,44 @@ let lastRanking = [];
 // ===================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    checkLoginStatus();
+    await checkLoginStatus();
     updateLoginUI();
     await loadAndRenderAll();
     initializeEventListeners();
     observeReveals();
+
+    // Si la sesión vence o se renueva, la interfaz se entera sola y no queda
+    // mostrando botones habilitados que el servidor ya va a rechazar.
+    supabase?.auth?.onAuthStateChange((_event, session) => {
+        const wasLoggedIn = isLoggedIn;
+        isLoggedIn = !!session;
+        if (wasLoggedIn !== isLoggedIn) updateLoginUI();
+    });
 });
 
 // ===================================
 // Login Management
 // ===================================
 
-function checkLoginStatus() {
-    isLoggedIn = localStorage.getItem('escribanoLoggedIn') === 'true';
+// La sesión la guarda y la renueva el propio cliente de Supabase.
+async function checkLoginStatus() {
+    if (!supabase?.auth) { isLoggedIn = false; return; }
+    try {
+        const { data } = await supabase.auth.getSession();
+        isLoggedIn = !!data?.session;
+    } catch (error) {
+        console.error('Error leyendo la sesión:', error);
+        isLoggedIn = false;
+    }
 }
 
-function login() {
-    console.log('Login successful!');
-    isLoggedIn = true;
-    localStorage.setItem('escribanoLoggedIn', 'true');
-    updateLoginUI();
-    alert('Inicio de sesión exitoso');
-}
-
-function logout() {
+async function logout() {
+    try {
+        await supabase?.auth?.signOut();
+    } catch (error) {
+        console.error('Error cerrando sesión:', error);
+    }
     isLoggedIn = false;
-    localStorage.removeItem('escribanoLoggedIn');
     updateLoginUI();
 }
 
@@ -132,17 +147,47 @@ function hideLoginModal() {
     modal.classList.remove('active');
 }
 
-function handleLogin() {
+async function handleLogin() {
     const pinInput = document.getElementById('pinInput');
+    const btn = document.getElementById('btnPasswordSubmit');
     const pin = pinInput.value.trim();
 
-    if (pin === CORRECT_PIN) {
-        login();
-        hideLoginModal();
-    } else {
-        alert('PIN incorrecto');
-        pinInput.value = '';
+    if (pin.length < 6) {
+        alert('La clave tiene 6 dígitos');
         pinInput.focus();
+        return;
+    }
+
+    if (!supabase?.auth) {
+        alert('No hay conexión con Supabase');
+        return;
+    }
+
+    // La comparación la hace el servidor: acá no hay ninguna clave con qué comparar.
+    btn.disabled = true;
+    btn.textContent = 'Verificando…';
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+            email: ESCRIBANO_EMAIL,
+            password: pin
+        });
+
+        if (error) {
+            alert('Clave incorrecta');
+            pinInput.value = '';
+            pinInput.focus();
+            return;
+        }
+
+        isLoggedIn = true;
+        updateLoginUI();
+        hideLoginModal();
+    } catch (error) {
+        console.error('Error iniciando sesión:', error);
+        alert('No se pudo verificar la clave: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
     }
 }
 

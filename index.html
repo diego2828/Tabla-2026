@@ -1,83 +1,167 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Tabla Cavani y el taburete 2026 - El mas put0 paga asado. VIVA EL ESCRIBANO!">
-    <title>Tabla Cavani 2026 | Ranking de Juntadas</title>
+    <meta name="description"
+        content="Tabla Cavani y el taburete 2026. El último de la tabla al 21 de diciembre paga la comida de fin de año.">
+    <title>Tabla Cavani y el taburete · Temporada 2026</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script>document.documentElement.classList.add('js')</script>
 </head>
 
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-top">
-                <button id="btnLoginEscribano" class="btn-login">
-                    🔒 Login Escribano
-                </button>
+    <!-- Top bar -->
+    <header class="topbar">
+        <div class="shell topbar-inner">
+            <span class="wordmark">Tabla Cavani y el taburete</span>
+            <div class="topbar-right">
+                <span class="scope">Temporada 2026</span>
+                <button id="btnLoginEscribano" class="btn btn-ghost">Entrar</button>
             </div>
-            <h1 class="main-title">🏆 Tabla Cavani y el taburete 2026</h1>
-            <p class="subtitle">El mas put0 paga asado. VIVA EL ESCRIBANO!</p>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
+    <main class="canvas">
+        <div class="shell">
 
-            <!-- Action Buttons -->
-            <div class="action-buttons">
-                <button id="btnAddParticipant" class="btn btn-primary" disabled>
-                    <span class="btn-icon">👤</span>
-                    Agregar Participante
-                </button>
-                <button id="btnAddEvent" class="btn btn-primary" disabled>
-                    <span class="btn-icon">📅</span>
-                    Nueva Juntada
-                </button>
-                <button id="btnExportExcel" class="btn btn-success" disabled>
-                    <span class="btn-icon">📊</span>
-                    Exportar Excel
-                </button>
-                <button id="btnReglamento" class="btn btn-secondary">
-                    <span class="btn-icon">📜</span>
-                    Reglamento
-                </button>
+            <!-- Title row -->
+            <div class="titlerow">
+                <div class="titlerow-text">
+                    <h1 class="page-title">Temporada 2026</h1>
+                    <p class="page-sub" id="pageFinding">Cargando la tabla…</p>
+                </div>
+                <div class="action-buttons">
+                    <button id="btnAddParticipant" class="btn btn-ghost" disabled title="Solo el escribano">
+                        Participante
+                    </button>
+                    <button id="btnExportExcel" class="btn btn-ghost" disabled title="Solo el escribano">
+                        Exportar
+                    </button>
+                    <button id="btnAddEvent" class="btn btn-primary" disabled title="Solo el escribano">
+                        Nueva juntada
+                    </button>
+                </div>
             </div>
 
-            <!-- Ranking Section -->
-            <section class="ranking-section">
-                <h2 class="section-title">🔥 Ranking Actual</h2>
-                <div class="stats-bar">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Puntos Disputados:</span>
-                        <span class="stat-value" id="totalPointsDisputed">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Total Juntadas:</span>
-                        <span class="stat-value" id="totalEvents">0</span>
-                    </div>
+            <!-- The stake: who pays, and how much year is left -->
+            <section class="card stake" aria-labelledby="stakeHeading">
+                <div class="stake-who">
+                    <h2 class="cell-label" id="stakeHeading">Paga el asado</h2>
+                    <p class="stake-name" id="stakeName">—</p>
+                    <p class="stake-meta" id="stakeMeta">Todavía no hay tabla.</p>
                 </div>
-                <div id="rankingTable" class="ranking-table">
-                    <div class="empty-state">
-                        <p>🎯 Todavía no hay participantes</p>
-                        <p class="empty-hint">Agrega participantes para comenzar</p>
-                    </div>
+                <div class="stake-cell">
+                    <h2 class="cell-label">Para el cierre</h2>
+                    <p class="stake-figure"><span id="daysLeft" class="num">—</span> <small>días</small></p>
+                    <p class="stake-meta">Hasta el 21 de diciembre</p>
+                </div>
+                <div class="stake-cell">
+                    <h2 class="cell-label">Última juntada</h2>
+                    <p class="stake-figure num" id="lastActa">—</p>
+                    <p class="stake-meta" id="lastActaName">—</p>
                 </div>
             </section>
 
-            <!-- Events Section -->
-            <section class="events-section">
-                <h2 class="section-title">📋 Historial de Juntadas</h2>
+            <!-- La carrera: los 8 a lo largo del año -->
+            <section class="card race-section" aria-labelledby="raceHeading">
+                <header class="card-head">
+                    <h2 class="card-title" id="raceHeading">La carrera</h2>
+                    <span class="card-note">Puntaje acumulado, juntada a juntada. Tocá una línea para ver ese año.</span>
+                </header>
+                <div id="racePlot" class="race-plot"></div>
+            </section>
+
+            <!-- Standings + summary rail -->
+            <div class="grid-main">
+
+                <section class="card ranking-section" aria-labelledby="rankingHeading">
+                    <header class="card-head">
+                        <h2 class="card-title" id="rankingHeading">La tabla</h2>
+                        <span class="card-note" id="rankingNote">—</span>
+                    </header>
+                    <div id="rankingTable" class="ranking-table">
+                        <div class="empty-state">
+                            <p>Todavía no hay participantes</p>
+                            <p class="empty-hint">El escribano los carga desde «Participante».</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card rail-card" aria-labelledby="resumenHeading">
+                        <header class="card-head">
+                            <h2 class="card-title" id="resumenHeading">Resumen</h2>
+                        </header>
+                        <dl class="kpi-list">
+                            <div class="kpi-row">
+                                <dt>Juntadas</dt>
+                                <dd class="num" id="totalEvents">0</dd>
+                            </div>
+                            <div class="kpi-row">
+                                <dt>Puntos disputados</dt>
+                                <dd class="num" id="totalPointsDisputed">0</dd>
+                            </div>
+                            <div class="kpi-row">
+                                <dt>Participantes</dt>
+                                <dd class="num" id="totalParticipants">0</dd>
+                            </div>
+                            <div class="kpi-row">
+                                <dt>Promedio por juntada</dt>
+                                <dd class="num" id="avgPoints">—</dd>
+                            </div>
+                        </dl>
+                    </section>
+
+                <section class="card card-fill rail-card" aria-labelledby="puntajeHeading">
+                        <header class="card-head">
+                            <h2 class="card-title" id="puntajeHeading">Cómo se puntúa</h2>
+                        </header>
+                        <dl class="score-key">
+                            <div class="key-row">
+                                <dt>Asado y boliche</dt>
+                                <dd class="num">+3</dd>
+                            </div>
+                            <div class="key-row">
+                                <dt>Solo asado</dt>
+                                <dd class="num">+1</dd>
+                            </div>
+                            <div class="key-row">
+                                <dt>Solo salida</dt>
+                                <dd class="num">+1</dd>
+                            </div>
+                            <div class="key-row">
+                                <dt>No ir</dt>
+                                <dd class="num">0</dd>
+                            </div>
+                            <div class="key-row">
+                                <dt>Matarla, hacer la del tibio,<br>faltar al cumpleaños</dt>
+                                <dd class="num">−1</dd>
+                            </div>
+                            <div class="key-row">
+                                <dt>Tres fechas seguidas sin ir</dt>
+                                <dd class="num">−2</dd>
+                            </div>
+                        </dl>
+                    <button id="btnReglamento" class="btn btn-ghost card-foot-action">
+                        Ver el reglamento completo
+                    </button>
+                </section>
+            </div>
+
+            <!-- Actas -->
+            <section class="card actas-section events-section" aria-labelledby="actasHeading" data-reveal>
+                <header class="card-head">
+                    <h2 class="card-title" id="actasHeading">Juntadas</h2>
+                    <span class="card-note" id="actasCount">—</span>
+                </header>
                 <div id="eventsList" class="events-list">
                     <div class="empty-state">
-                        <p>📅 No hay juntadas registradas</p>
-                        <p class="empty-hint">Crea tu primera juntada</p>
+                        <p>Sin juntadas registradas</p>
+                        <p class="empty-hint">El escribano carga la primera desde «Nueva juntada».</p>
                     </div>
                 </div>
             </section>
@@ -85,184 +169,214 @@
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
-        <p>Tabla Cavani 2026 | 1 de Enero - 21 de Diciembre</p>
+        <div class="shell footer-inner">
+            <span>Tabla Cavani y el taburete</span>
+            <span>1 de enero – 21 de diciembre de 2026 · Viva el escribano</span>
+        </div>
     </footer>
 
     <!-- Modals -->
 
+    <!-- Player Year Modal: el año de un jugador contra la línea del que paga -->
+    <div id="playerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="playerName">
+        <div class="modal-content modal-large">
+            <button class="modal-close" id="btnClosePlayer" aria-label="Cerrar">&times;</button>
+            <h3 class="modal-title" id="playerName">—</h3>
+            <p class="modal-text" id="playerStanding">—</p>
+
+            <div class="player-chart">
+                <div class="player-chart-head">
+                    <span class="cell-label">Puntaje acumulado en el año</span>
+                    <span class="player-legend" id="playerLegend"></span>
+                </div>
+                <div id="playerPlot" class="player-plot"></div>
+                <div class="yearscale">
+                    <span>1 ene</span>
+                    <span>21 dic</span>
+                </div>
+            </div>
+
+            <dl class="player-stats" id="playerStats"></dl>
+            <p class="player-verdict" id="playerVerdict">—</p>
+        </div>
+    </div>
+
     <!-- Login Modal -->
-    <div id="passwordModal" class="modal">
+    <div id="passwordModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
         <div class="modal-content">
-            <h3 class="modal-title">🔒 Login Escribano</h3>
-            <p class="modal-text">Ingresa el PIN de 6 dígitos</p>
+            <h3 class="modal-title" id="loginTitle">Entrar como escribano</h3>
+            <p class="modal-text">Solo el escribano carga actas. Ingresá el PIN de 6 dígitos.</p>
             <div class="form-group">
                 <label for="pinInput">PIN</label>
-                <input type="password" id="pinInput" class="input-field pin-input" placeholder="••••••" maxlength="6"
-                    inputmode="numeric" pattern="[0-9]*">
+                <input type="password" id="pinInput" class="input-field pin-input" placeholder="------" maxlength="6"
+                    inputmode="numeric" pattern="[0-9]*" autocomplete="off">
             </div>
             <div class="modal-actions">
-                <button id="btnPasswordSubmit" class="btn btn-primary">Ingresar</button>
-                <button id="btnPasswordCancel" class="btn btn-cancel">Cancelar</button>
+                <button id="btnPasswordCancel" class="btn btn-ghost">Cancelar</button>
+                <button id="btnPasswordSubmit" class="btn btn-primary">Entrar</button>
             </div>
         </div>
     </div>
 
     <!-- Add Participant Modal -->
-    <div id="addParticipantModal" class="modal">
+    <div id="addParticipantModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="participantTitle">
         <div class="modal-content">
-            <h3 class="modal-title">👤 Agregar Participante</h3>
+            <h3 class="modal-title" id="participantTitle">Agregar participante</h3>
             <div class="form-group">
-                <label for="participantName">Nombre del Participante</label>
-                <input type="text" id="participantName" class="input-field" placeholder="Ej: Juan">
+                <label for="participantName">Nombre</label>
+                <input type="text" id="participantName" class="input-field" placeholder="Juan">
             </div>
             <div class="form-group">
-                <label for="startingPoints">Puntos Iniciales</label>
-                <input type="number" id="startingPoints" class="input-field" value="0" placeholder="0">
+                <label for="startingPoints">Puntos iniciales</label>
+                <input type="number" id="startingPoints" class="input-field" value="0">
             </div>
             <div class="modal-actions">
+                <button id="btnCancelParticipant" class="btn btn-ghost">Cancelar</button>
                 <button id="btnSaveParticipant" class="btn btn-primary">Guardar</button>
-                <button id="btnCancelParticipant" class="btn btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
 
     <!-- Add Event Modal -->
-    <div id="addEventModal" class="modal">
+    <div id="addEventModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="eventTitle">
         <div class="modal-content modal-large">
-            <h3 class="modal-title">📅 Nueva Juntada</h3>
-            <div class="form-group">
-                <label for="eventName">Nombre de la Juntada</label>
-                <input type="text" id="eventName" class="input-field" placeholder="Ej: Asado en lo de Carlitos">
+            <h3 class="modal-title" id="eventTitle">Nueva juntada</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="eventName">Nombre de la juntada</label>
+                    <input type="text" id="eventName" class="input-field" placeholder="Asado en lo de Carlitos">
+                </div>
+                <div class="form-group form-group-narrow">
+                    <label for="eventDate">Fecha</label>
+                    <input type="date" id="eventDate" class="input-field">
+                </div>
+                <div class="form-group form-group-narrow">
+                    <label for="eventPoints">Puntos en juego</label>
+                    <input type="number" id="eventPoints" class="input-field" value="1">
+                </div>
             </div>
             <div class="form-group">
-                <label for="eventDate">Fecha</label>
-                <input type="date" id="eventDate" class="input-field">
-            </div>
-            <div class="form-group">
-                <label for="eventPoints">Puntos Totales Disputados</label>
-                <input type="number" id="eventPoints" class="input-field" value="1" placeholder="Ej: 3">
-            </div>
-            <div class="form-group">
-                <label>Puntajes por Participante</label>
+                <label class="group-label">Puntaje por participante</label>
                 <div id="participantScores" class="participant-scores">
                     <!-- Dynamically populated -->
                 </div>
             </div>
             <div class="modal-actions">
-                <button id="btnSaveEvent" class="btn btn-primary">Guardar Juntada</button>
-                <button id="btnCancelEvent" class="btn btn-cancel">Cancelar</button>
+                <button id="btnCancelEvent" class="btn btn-ghost">Cancelar</button>
+                <button id="btnSaveEvent" class="btn btn-primary">Guardar juntada</button>
             </div>
         </div>
     </div>
 
     <!-- Edit Event Modal -->
-    <div id="editEventModal" class="modal">
+    <div id="editEventModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editEventTitle">
         <div class="modal-content modal-large">
-            <h3 class="modal-title">✏️ Editar Juntada</h3>
-            <div class="form-group">
-                <label for="editEventName">Nombre de la Juntada</label>
-                <input type="text" id="editEventName" class="input-field">
+            <h3 class="modal-title" id="editEventTitle">Editar juntada</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="editEventName">Nombre de la juntada</label>
+                    <input type="text" id="editEventName" class="input-field">
+                </div>
+                <div class="form-group form-group-narrow">
+                    <label for="editEventDate">Fecha</label>
+                    <input type="date" id="editEventDate" class="input-field">
+                </div>
+                <div class="form-group form-group-narrow">
+                    <label for="editEventPoints">Puntos en juego</label>
+                    <input type="number" id="editEventPoints" class="input-field">
+                </div>
             </div>
             <div class="form-group">
-                <label for="editEventDate">Fecha</label>
-                <input type="date" id="editEventDate" class="input-field">
-            </div>
-            <div class="form-group">
-                <label for="editEventPoints">Puntos Totales Disputados</label>
-                <input type="number" id="editEventPoints" class="input-field">
-            </div>
-            <div class="form-group">
-                <label>Puntajes por Participante</label>
+                <label class="group-label">Puntaje por participante</label>
                 <div id="editParticipantScores" class="participant-scores">
                     <!-- Dynamically populated -->
                 </div>
             </div>
             <div class="modal-actions">
-                <button id="btnUpdateEvent" class="btn btn-primary">Actualizar Juntada</button>
-                <button id="btnCancelEditEvent" class="btn btn-cancel">Cancelar</button>
+                <button id="btnCancelEditEvent" class="btn btn-ghost">Cancelar</button>
+                <button id="btnUpdateEvent" class="btn btn-primary">Actualizar juntada</button>
             </div>
         </div>
     </div>
 
     <!-- Reglamento Modal -->
-    <div id="reglamentoModal" class="modal">
+    <div id="reglamentoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="reglamentoTitle">
         <div class="modal-content modal-large">
-            <button class="modal-close" id="btnCloseReglamento">&times;</button>
-            <h3 class="modal-title">📜 REGLAMENTO TABLA 2026</h3>
+            <button class="modal-close" id="btnCloseReglamento" aria-label="Cerrar el reglamento">&times;</button>
+            <h3 class="modal-title" id="reglamentoTitle">Reglamento 2026</h3>
+            <p class="modal-text">Del 1 de enero al 21 de diciembre de 2026.</p>
+
             <div class="reglamento-content">
-                <p class="reglamento-period"><strong>1 de ENERO 2026 - 21 de DICIEMBRE 2026</strong></p>
 
                 <div class="reglamento-section">
-                    <h4>Puntajes por Asistencia</h4>
+                    <h4>Puntajes por asistencia</h4>
                     <ul>
-                        <li><strong>No ir:</strong> 0 puntos</li>
-                        <li><strong>Ir solo a asado:</strong> +1</li>
-                        <li><strong>Ir solo a salida/boliche:</strong> +1</li>
-                        <li><strong>Ir a asado + boliche:</strong> +3</li>
-                    </ul>
-                </div>
-
-                <div class="reglamento-section">
-                    <h4>Reglas de Eventos</h4>
-                    <ul>
-                        <li>SI O SI DEBE HABER ENCUESTA EN EL GRUPO PARA QUE CUENTE EL EVENTO</li>
-                        <li>OBLIGACIÓN DE RESPONDER HASTA 4 HORAS ANTES DEL EVENTO</li>
-                        <li>Si para la juntada son 4 y a último momento la mata 1, la juntada suma igual, y el que la
-                            mata RESTA -1</li>
-                        <li>4 horas antes del evento se cierra la encuesta de asistencia, los que están suman y si se
-                            suma al evento después no suma</li>
+                        <li><span class="rg-val num">0</span> No ir</li>
+                        <li><span class="rg-val num">+1</span> Ir solo a asado</li>
+                        <li><span class="rg-val num">+1</span> Ir solo a salida o boliche</li>
+                        <li><span class="rg-val num">+3</span> Ir a asado y boliche</li>
                     </ul>
                 </div>
 
                 <div class="reglamento-section">
                     <h4>Penalizaciones</h4>
                     <ul>
-                        <li><strong>Penalización -1:</strong> Si la mata 4 horas previo a asado/salida</li>
-                        <li><strong>Penalización -1:</strong> Si juega chilavert</li>
-                        <li><strong>Penalización -2:</strong> Si un participante no asiste a 3 fechas seguidas</li>
-                        <li><strong>Penalización -1:</strong> Si o si hay que confirmar ASISTENCIA o INASISTENCIA, no
-                            comunicar y hacer la del "tibio"</li>
-                        <li><strong>Penalización -1:</strong> Si no asiste a CUMPLEAÑOS</li>
+                        <li><span class="rg-val num">−1</span> Matarla 4 horas antes del asado o la salida</li>
+                        <li><span class="rg-val num">−1</span> Jugar al chilavert</li>
+                        <li><span class="rg-val num">−1</span> No confirmar asistencia ni inasistencia: hacer la del
+                            tibio</li>
+                        <li><span class="rg-val num">−1</span> No asistir a un cumpleaños</li>
+                        <li><span class="rg-val num">−2</span> No asistir a tres fechas seguidas</li>
+                        <li><span class="rg-val num">−6</span> Máximo de penalización seguida</li>
                     </ul>
                 </div>
 
                 <div class="reglamento-section">
-                    <h4>Condiciones Especiales</h4>
+                    <h4>Reglas de la juntada</h4>
                     <ul>
-                        <li>A la tercer juntada seguida con las mismas personas, no suma la juntada, únicamente si son
-                            las mismas 4 personas. Si son 5 o más, suma normalmente</li>
-                        <li>Para que cuente como evento mínimo 4 personas</li>
-                        <li>Para sumar en el asado, MINIMO 2 HORAS DE ASISTENCIA</li>
-                        <li>Para que el boliche/salida sea válido, se debe retirar del mismo pasadas las 4am. Sino no
-                            suma los puntos de la salida/boliche.*</li>
-                        <li>La juntada tiene que ser mencionada en el grupo</li>
-                        <li>Máximo de penalización seguida es -6</li>
-                        <li>Se debe documentar la salida con una foto y quienes estuvieron presentes</li>
+                        <li>Sí o sí debe haber encuesta en el grupo para que el evento cuente.</li>
+                        <li>Hay obligación de responder hasta 4 horas antes del evento.</li>
+                        <li>Cuatro horas antes se cierra la encuesta: los que están suman, y el que se suma después no
+                            suma.</li>
+                        <li>Si para la juntada son 4 y a último momento la mata 1, la juntada suma igual y el que la
+                            mata resta −1.</li>
+                        <li>La juntada tiene que ser mencionada en el grupo.</li>
                     </ul>
                 </div>
 
-                <div class="reglamento-section highlight">
-                    <h4>Premio Final</h4>
-                    <p><strong>El último de la tabla PAGA 100% comida fin de año. SOLO COMIDA!</strong></p>
+                <div class="reglamento-section">
+                    <h4>Condiciones para que sume</h4>
+                    <ul>
+                        <li>Mínimo 4 personas para que cuente como evento.</li>
+                        <li>Mínimo 2 horas de asistencia para sumar en el asado.</li>
+                        <li>Para que el boliche o la salida valga hay que retirarse pasadas las 4 de la mañana.</li>
+                        <li>A la tercera juntada seguida con las mismas 4 personas, la juntada no suma. Si son 5 o más,
+                            suma normalmente.</li>
+                        <li>Se debe documentar la salida con una foto y quiénes estuvieron presentes.</li>
+                    </ul>
+                </div>
+
+                <div class="reglamento-section reglamento-prize">
+                    <h4>El premio</h4>
+                    <p>El último de la tabla paga el 100% de la comida de fin de año. Solo la comida.</p>
                 </div>
 
                 <div class="reglamento-note">
-                    <p><em>*En vez de penalizar no sumas los puntos, ya sea +1 por salida solo, o +2 digamos si había
-                            asado previo, entonces en vez de 3, sumas 1. Si solo era salida y te vas antes de las 4 no
-                            sumas nada. Si hubo asado previo solo sumas lo del asado osea +1 en vez de sumar +3.</em>
+                    <p>Sobre el horario de la salida: en vez de penalizar, no sumás los puntos. Si era solo salida y te
+                        vas antes de las 4, no sumás nada. Si hubo asado previo, sumás solo el asado: +1 en vez de +3.
                     </p>
                 </div>
             </div>
+
             <div class="modal-actions">
                 <button id="btnCloseReglamentoBtn" class="btn btn-primary">Entendido</button>
             </div>
         </div>
     </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <!-- SheetJS Library for Excel Export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 

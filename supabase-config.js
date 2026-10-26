@@ -11,12 +11,12 @@ let supabaseClient = null;
 try {
     if (typeof window.supabase !== 'undefined') {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('✅ Supabase inicializado correctamente');
+        console.log('Supabase inicializado correctamente');
     } else {
-        console.error('❌ Supabase library no está cargada');
+        console.error('Supabase library no está cargada');
     }
 } catch (error) {
-    console.error('❌ Error inicializando Supabase:', error);
+    console.error('Error inicializando Supabase:', error);
 }
 
 // Exportar para uso global

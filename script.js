@@ -23,6 +23,8 @@ let SEASON_CLOSE = new Date(2026, 11, 21);
 // Cada tabla es una temporada con su plantel y sus juntadas. La global no
 // existe en la base: es la suma de todas.
 const GLOBAL_ID = 'global';
+// La sala de trofeos no es una tabla: es una pantalla aparte (trofeos.js).
+const TROPHY_TAB = 'trofeos';
 
 // Mientras no se corra supabase-temporadas.sql la base no tiene tablas, y la
 // única es la de siempre: todas las juntadas, todos los participantes.
@@ -237,6 +239,8 @@ async function renderAll() {
     await renderEvents();
     renderSeasonsSummary();
     await updateStats();
+    renderForecastView();
+    renderTrophies();
 }
 
 function ensureData() {
@@ -316,9 +320,11 @@ async function loadData() {
 }
 
 // La tabla a mirar: la del enlace (#global o #tabla-<id>), si no la que está
-// en curso hoy, si no la más nueva.
+// en curso hoy, si no la más nueva. Detrás de la barra, la vista:
+// #tabla-<id>/pronostico.
 function pickSeason() {
-    const hash = decodeURIComponent(location.hash.slice(1));
+    const [hash, view] = decodeURIComponent(location.hash.slice(1)).split('/');
+    currentView = hash === TROPHY_TAB ? 'trofeos' : view === 'pronostico' ? 'pronostico' : 'tabla';
     const fromHash = hash === GLOBAL_ID && seasons.length > 1
         ? GLOBAL_ID
         : seasons.find(s => hash === `tabla-${s.id}`)?.id;
@@ -332,14 +338,29 @@ function pickSeason() {
 }
 
 async function selectSeason(seasonId) {
-    if (seasonId === currentSeasonId) return;
+    // desde la sala de trofeos, tocar una tabla vuelve a ella aunque sea la misma
+    const leavingRoom = currentView === 'trofeos';
+    if (seasonId === currentSeasonId && !leavingRoom) return;
+    if (leavingRoom) currentView = 'tabla';
     currentSeasonId = seasonId;
-    const hash = seasonId === GLOBAL_ID ? GLOBAL_ID : seasonsReady ? `tabla-${seasonId}` : '';
-    history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search);
+    writeSeasonHash();
     // cada tabla se dibuja sola cuando llega, como la primera
     rankingDrawn = false;
     raceDrawn = false;
     await renderAll();
+}
+
+// El enlace dice qué tabla y qué vista se mira, para poder mandarlo al grupo.
+function writeSeasonHash() {
+    if (currentView === 'trofeos') {
+        history.replaceState(null, '', `#${TROPHY_TAB}`);
+        return;
+    }
+    const season = currentSeasonId === GLOBAL_ID ? GLOBAL_ID
+        : seasonsReady ? `tabla-${currentSeasonId}` : (currentView === 'pronostico' ? 'tabla' : '');
+    const hash = season && currentView === 'pronostico' && currentSeasonId !== GLOBAL_ID
+        ? `${season}/pronostico` : season;
+    history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search);
 }
 
 // Las juntadas de una tabla; en la global, todas.
@@ -425,17 +446,20 @@ function renderSeasonBar() {
 
     const items = seasons.map(s => ({ id: s.id, name: s.name }));
     if (seasons.length > 1) items.push({ id: GLOBAL_ID, name: 'Global' });
+    if (trophiesAvailable()) items.push({ id: TROPHY_TAB, name: 'Sala de trofeos' });
 
+    const inRoom = currentView === 'trofeos';
     tabs.innerHTML = items.map(item => `
-        <button type="button" class="season-tab${item.id === GLOBAL_ID ? ' is-global' : ''}"
+        <button type="button" class="season-tab${item.id === GLOBAL_ID ? ' is-global' : ''}${item.id === TROPHY_TAB ? ' is-trophy' : ''}"
                 data-season-id="${item.id ?? ''}"
-                aria-pressed="${item.id === currentSeasonId}">${esc(item.name)}</button>
+                aria-pressed="${item.id === TROPHY_TAB ? inRoom : !inRoom && item.id === currentSeasonId}">${esc(item.name)}</button>
     `).join('');
 
     tabs.querySelectorAll('.season-tab').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.dataset.seasonId;
-            selectSeason(id === '' ? null : id);
+            if (id === TROPHY_TAB) openTrophyRoom();
+            else selectSeason(id === '' ? null : id);
         });
     });
 
@@ -2621,9 +2645,10 @@ function initializeEventListeners() {
     // Volver atrás con el navegador entre tablas
     window.addEventListener('hashchange', () => {
         const before = currentSeasonId;
+        const beforeView = currentView;
         currentSeasonId = null;
         pickSeason();
-        if (currentSeasonId !== before) {
+        if (currentSeasonId !== before || currentView !== beforeView) {
             rankingDrawn = false;
             raceDrawn = false;
             renderAll();
@@ -2648,7 +2673,8 @@ function initializeEventListeners() {
     // de la fila sigue abriendo el panel.
     document.addEventListener('click', (e) => {
         const face = e.target.closest('.avatar.has-photo');
-        if (!face) return;
+        // en las historias, tocar es pasar a la siguiente
+        if (!face || face.closest('.stories-modal')) return;
         e.preventDefault();
         e.stopPropagation();
         openPhoto(face.dataset.photoId);

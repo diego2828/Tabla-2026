@@ -11,6 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="pronostico.css">
+    <link rel="stylesheet" href="trofeos.css">
     <script>document.documentElement.classList.add('js')</script>
 </head>
 
@@ -57,6 +59,18 @@
                         Nueva juntada
                     </button>
                 </div>
+            </div>
+
+            <!-- La tabla o el pronóstico; y el año contado en historias -->
+            <div class="view-bar" id="viewBar" hidden>
+                <div class="view-switch" id="viewSwitch" role="group" aria-label="Qué mirar">
+                    <button type="button" class="view-tab" data-view="tabla" aria-pressed="true">La tabla</button>
+                    <button type="button" class="view-tab" data-view="pronostico" aria-pressed="false">Pronóstico</button>
+                </div>
+                <button type="button" id="btnStories" class="btn btn-ghost btn-stories">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z"/></svg>
+                    El año en historias
+                </button>
             </div>
 
             <!-- The stake: who pays, and how much year is left -->
@@ -166,6 +180,15 @@
                 </section>
             </div>
 
+            <!-- Los trofeos que entrega esta tabla -->
+            <section class="card trophy-section" id="trophySection" aria-labelledby="trophyHeading" data-reveal hidden>
+                <header class="card-head">
+                    <h2 class="card-title" id="trophyHeading">Trofeos de esta tabla</h2>
+                    <span class="card-note" id="trophyNote"></span>
+                </header>
+                <div id="trophyBody" class="tr-body"></div>
+            </section>
+
             <!-- Global: cada tabla con su campeón y quién pagó -->
             <section class="card seasons-section" id="seasonsSection" aria-labelledby="seasonsHeading" hidden>
                 <header class="card-head">
@@ -188,6 +211,68 @@
                     </div>
                 </div>
             </section>
+
+            <!-- La sala de trofeos: las copas de todos los años y la vitrina de cada uno -->
+            <div class="trophy-room" id="trophyRoom" hidden>
+                <section class="card room-cups-card" aria-labelledby="roomCupsHeading">
+                    <header class="card-head">
+                        <h2 class="card-title" id="roomCupsHeading">Las copas</h2>
+                        <span class="card-note">Un campeón por tabla.</span>
+                    </header>
+                    <div class="room-cups" id="roomCups"></div>
+                </section>
+                <section class="card room-shelves-card" aria-labelledby="roomShelvesHeading" data-reveal>
+                    <header class="card-head">
+                        <h2 class="card-title" id="roomShelvesHeading">Las vitrinas</h2>
+                        <span class="card-note">Todo lo que ganó cada uno, tabla por tabla.</span>
+                    </header>
+                    <div class="room-shelves" id="roomShelves"></div>
+                </section>
+            </div>
+
+            <!-- El pronóstico: el resto del año simulado 10.000 veces -->
+            <div class="forecast" id="forecastView" hidden>
+
+                <section class="card fc-odds" aria-labelledby="fcOddsHeading">
+                    <header class="card-head">
+                        <h2 class="card-title" id="fcOddsHeading">Las chances</h2>
+                        <span class="card-note">10.000 finales simulados · margen de error de bar</span>
+                    </header>
+                    <p class="fc-headline" id="fcHeadline">Calculando…</p>
+                    <p class="fc-sub" id="fcSub"></p>
+                    <div class="fc-board" id="fcBoard"></div>
+                </section>
+
+                <section class="card fc-show" aria-labelledby="fcShowHeading" data-reveal>
+                    <header class="card-head">
+                        <h2 class="card-title" id="fcShowHeading">Ver cómo termina</h2>
+                        <span class="card-note">Un final posible, juntada por juntada. Cada vez sale otro.</span>
+                    </header>
+                    <div class="fc-stage" id="fcStage">
+                        <div class="fc-stage-top">
+                            <p class="fc-clock num" id="fcClock">Hoy</p>
+                            <p class="fc-step" id="fcStep"></p>
+                        </div>
+                        <div class="fc-progress" id="fcProgress" aria-hidden="true"><i></i></div>
+                        <div class="fc-rows" id="fcRows"></div>
+                        <p class="fc-narrator" id="fcNarrator" aria-live="polite"></p>
+                        <div class="fc-finale" id="fcFinale" hidden></div>
+                    </div>
+                    <div class="fc-controls">
+                        <button type="button" id="btnShowPlay" class="btn btn-primary" aria-pressed="false">Ver cómo termina</button>
+                        <button type="button" id="btnShowNew" class="btn btn-ghost" hidden>Otro final</button>
+                        <button type="button" id="btnShowSkip" class="btn btn-ghost">Saltar al final</button>
+                        <button type="button" id="btnShowFast" class="btn btn-ghost fc-fast" aria-pressed="false">Rápido</button>
+                    </div>
+                </section>
+
+                <section class="card fc-method-card" aria-labelledby="fcMethodHeading" data-reveal>
+                    <header class="card-head">
+                        <h2 class="card-title" id="fcMethodHeading">Cómo se calcula</h2>
+                    </header>
+                    <ul class="fc-method" id="fcMethod"></ul>
+                </section>
+            </div>
 
         </div>
     </main>
@@ -481,6 +566,19 @@
         </div>
     </div>
 
+    <!-- El año en historias: una pantalla por dato, se pasan solas -->
+    <div id="storiesModal" class="stories-modal" role="dialog" aria-modal="true" aria-label="El año en historias">
+        <div class="stories-frame">
+            <div class="stories-progress" id="storiesProgress" aria-hidden="true"></div>
+            <button type="button" class="stories-close" id="btnCloseStories" aria-label="Cerrar las historias">&times;</button>
+            <div class="stories-slides" id="storiesSlides"></div>
+            <div class="stories-nav">
+                <button type="button" class="btn btn-ghost btn-small" id="btnStoryPrev">Anterior</button>
+                <button type="button" class="btn btn-ghost btn-small" id="btnStoryNext">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
     <!-- La foto de alguien en grande. Va última: queda encima de cualquier otra ventana. -->
     <div id="photoModal" class="modal photo-modal" role="dialog" aria-modal="true" aria-labelledby="photoModalName">
         <figure class="photo-frame">
@@ -497,6 +595,8 @@
 
     <!-- Main Application Script -->
     <script src="script.js"></script>
+    <script src="pronostico.js"></script>
+    <script src="trofeos.js"></script>
 </body>
 
 </html>

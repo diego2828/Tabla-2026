@@ -1,0 +1,669 @@
+/* ===================================================================
+   LA SALA DE TROFEOS
+   La copa es la pieza más grande de la pantalla y es de oro: el mismo
+   --gold del puntero. Las medallas llevan el color de su trofeo; las que
+   nadie quiere, la brasa o el rojo de la multa.
+   =================================================================== */
+
+/* ---------- la pestaña ---------- */
+
+.season-tab.is-trophy {
+    margin-left: 12px;
+}
+
+.season-tab.is-trophy[aria-pressed="true"] {
+    color: var(--gold);
+}
+
+.season-tab.is-trophy::after {
+    background: var(--gold);
+}
+
+/* en la sala, todo lo de una tabla se guarda */
+body.is-trophies #viewBar,
+body.is-trophies #seasonActions,
+body.is-trophies #stakeSection,
+body.is-trophies #raceSection,
+body.is-trophies .grid-main,
+body.is-trophies #trophySection,
+body.is-trophies #seasonsSection,
+body.is-trophies #actasSection,
+body.is-trophies #forecastView {
+    display: none;
+}
+
+.trophy-room>.card+.card {
+    margin-top: var(--gap);
+}
+
+/* ---------- la copa ---------- */
+
+.cup {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.cup-gold {
+    fill: var(--gold);
+}
+
+.cup-shade {
+    fill: #d9a432;
+}
+
+.cup-rim {
+    fill: #f7d57a;
+}
+
+.cup-handle {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 7;
+    stroke-linecap: round;
+}
+
+.cup-star {
+    fill: #fff1c2;
+}
+
+.cup-plinth {
+    fill: #3a2c20;
+}
+
+.cup-plaque {
+    fill: #c9a24a;
+}
+
+.cup-year {
+    fill: #2a2108;
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.cup-sparks path {
+    fill: #fff1c2;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+/* la copa de una tabla en juego todavía no es de nadie: se ve en sombra */
+.cup.is-pending .cup-gold {
+    fill: var(--nested);
+}
+
+.cup.is-pending .cup-shade,
+.cup.is-pending .cup-plaque {
+    fill: #26221f;
+}
+
+.cup.is-pending .cup-rim {
+    fill: #3a352f;
+}
+
+.cup.is-pending .cup-handle {
+    stroke: var(--nested);
+}
+
+.cup.is-pending .cup-star {
+    fill: var(--raised);
+}
+
+.cup.is-pending .cup-plinth {
+    fill: #1d1a17;
+}
+
+.cup.is-pending .cup-year {
+    fill: var(--muted);
+}
+
+.cup.is-pending .cup-sparks {
+    display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .cup-sparks path {
+        animation: twinkle 2400ms ease-in-out infinite;
+    }
+
+    .cup-sparks path:nth-child(2) {
+        animation-delay: 800ms;
+    }
+
+    .cup-sparks path:nth-child(3) {
+        animation-delay: 1600ms;
+    }
+}
+
+@keyframes twinkle {
+    0%,
+    100% {
+        opacity: 0;
+        transform: scale(0.3) rotate(0);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1) rotate(45deg);
+    }
+}
+
+/* ---------- la medalla ---------- */
+
+.medal {
+    display: block;
+    width: 46px;
+    height: auto;
+    flex: none;
+    overflow: visible;
+    transform-origin: 50% 0;
+}
+
+.medal-ribbon-a {
+    fill: color-mix(in srgb, var(--medal) 55%, #1a1714);
+}
+
+.medal-ribbon-b {
+    fill: color-mix(in srgb, var(--medal) 32%, #0a0908);
+}
+
+.medal-disc {
+    fill: var(--medal);
+}
+
+.medal-ring {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.22);
+    stroke-width: 2;
+}
+
+.medal-line {
+    fill: none;
+    stroke: #0a0908;
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.medal-fill {
+    fill: #0a0908;
+}
+
+.medal-eye {
+    fill: var(--medal);
+}
+
+.medal-num {
+    fill: #0a0908;
+    font-size: 19px;
+    font-weight: 800;
+}
+
+@keyframes swing {
+    0% {
+        transform: rotate(0);
+    }
+
+    25% {
+        transform: rotate(-9deg);
+    }
+
+    55% {
+        transform: rotate(6deg);
+    }
+
+    80% {
+        transform: rotate(-3deg);
+    }
+
+    100% {
+        transform: rotate(0);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+    .tr-medal:hover .medal,
+    .shelf-item:hover .medal,
+    .shelf-item:focus-visible .medal,
+    .shelf-item.is-open .medal {
+        animation: swing 900ms var(--ease-out);
+    }
+}
+
+/* ---------- trofeos de esta tabla ---------- */
+
+.tr-body {
+    display: grid;
+    grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+    gap: var(--gap);
+    align-items: stretch;
+}
+
+.tr-champ {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 28px 22px;
+    border-radius: 16px;
+    background: var(--gold-field);
+    text-align: center;
+}
+
+.tr-champ .cup {
+    width: 190px;
+}
+
+.tr-champ-who {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.tr-champ-faces {
+    display: flex;
+    margin-bottom: 6px;
+}
+
+.tr-champ-faces .avatar {
+    box-shadow: 0 0 0 3px var(--gold); /* taste-skill-ignore: aro, no sombra */
+}
+
+.tr-champ-faces .avatar+.avatar {
+    margin-left: -10px;
+}
+
+.tr-champ-label {
+    font-size: var(--fs-body);
+    color: var(--muted);
+}
+
+.tr-champ-name {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--gold);
+}
+
+.tr-champ-detail {
+    font-size: var(--fs-body);
+    color: var(--muted);
+}
+
+.tr-medals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-content: start;
+}
+
+.tr-medal {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--raised);
+    transition: background var(--t-hover) ease;
+}
+
+.tr-medal:hover {
+    background: var(--nested);
+}
+
+.tr-medal-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.tr-medal-text strong {
+    font-weight: 600;
+}
+
+.tr-medal.is-anti .tr-medal-text strong {
+    color: var(--ember);
+}
+
+.tr-medal-who {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--text);
+}
+
+.tr-medal-who .avatar+.avatar {
+    margin-left: -12px;
+}
+
+.tr-medal-text small {
+    font-size: var(--fs-small);
+    color: var(--faint);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .js .trophy-section.is-in .tr-champ .cup {
+        animation: cup-rise 1100ms var(--ease-expo) both;
+    }
+
+    .js .trophy-section.is-in .tr-medal {
+        animation: row-in 560ms var(--ease-out) both;
+        animation-delay: calc(260ms + var(--i, 0) * var(--stagger-item));
+    }
+}
+
+@keyframes cup-rise {
+    from {
+        opacity: 0;
+        transform: translateY(36px) scale(0.86) rotate(-4deg);
+    }
+}
+
+/* ---------- la sala: las copas ---------- */
+
+.room-cups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: var(--gap);
+}
+
+.room-cup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 28px 22px 24px;
+    border-radius: 16px;
+    background: var(--gold-field);
+    text-align: center;
+    transition: background var(--t-hover) ease;
+}
+
+.room-cup.is-live {
+    background: var(--raised);
+}
+
+.room-cup .cup {
+    width: min(200px, 100%);
+    transition: transform 420ms var(--ease-out);
+}
+
+.room-cup:hover .cup {
+    transform: translateY(-8px) rotate(-2deg);
+}
+
+.room-cup figcaption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.room-cup-faces {
+    display: flex;
+    margin-bottom: 6px;
+}
+
+.room-cup-faces .avatar {
+    box-shadow: 0 0 0 3px var(--gold); /* taste-skill-ignore: aro, no sombra */
+}
+
+.room-cup.is-live .room-cup-faces .avatar {
+    box-shadow: 0 0 0 3px var(--nested); /* taste-skill-ignore: aro, no sombra */
+}
+
+.room-cup-faces .avatar+.avatar {
+    margin-left: -10px;
+}
+
+.room-cup strong {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--gold);
+}
+
+.room-cup.is-live strong {
+    color: var(--text);
+}
+
+.room-cup small {
+    font-size: var(--fs-cell);
+    color: var(--muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .js .room-cup {
+        animation: cup-rise 1000ms var(--ease-expo) both;
+        animation-delay: calc(100ms + var(--i, 0) * 140ms);
+    }
+}
+
+/* ---------- la sala: las vitrinas ---------- */
+
+.room-shelves {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.shelf {
+    padding: 18px 20px 20px;
+    border-radius: 16px;
+    background: var(--raised);
+}
+
+.shelf.has-cup {
+    background: var(--gold-field);
+    box-shadow: inset 3px 0 0 var(--gold); /* taste-skill-ignore: borde interior, no sombra en reposo */
+}
+
+.shelf-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.shelf-head h3 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.shelf.has-cup .shelf-head h3 {
+    color: var(--gold);
+}
+
+.shelf-head p {
+    font-size: var(--fs-cell);
+    color: var(--muted);
+}
+
+/* el estante: los trofeos se apoyan sobre una tabla de madera */
+.shelf-items {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 6px 4px;
+    margin: 16px 0 0;
+    padding: 0 6px 14px;
+}
+
+.shelf-items::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 8px;
+    border-radius: 4px;
+    background: #3a2c20;
+}
+
+.shelf-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 88px;
+    padding: 6px 0 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    outline-offset: 0;
+    transition: background var(--t-hover) ease;
+}
+
+.shelf-item:hover,
+.shelf-item.is-open {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.shelf-item .medal {
+    width: 52px;
+    margin-bottom: 4px;
+}
+
+.shelf-item.is-cup .cup {
+    width: 92px;
+    margin-bottom: 2px;
+}
+
+.shelf-item span {
+    font-size: var(--fs-small);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.shelf-item.is-cup span {
+    color: var(--gold);
+}
+
+.shelf-item.is-anti span {
+    color: var(--ember);
+}
+
+.shelf-item small {
+    font-size: 11px;
+    color: var(--faint);
+}
+
+.shelf-item.is-live>svg {
+    opacity: 0.5;
+}
+
+/* el detalle: un cartelito que flota sobre el trofeo */
+.shelf-detail {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    z-index: 2;
+    padding: 6px 10px;
+    border-radius: var(--radius-chip);
+    background: var(--text);
+    color: #000000;
+    font-size: var(--fs-small);
+    font-style: normal;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, 6px);
+    transition: opacity var(--t-hover) ease, transform var(--t-ui) var(--ease-out);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* taste-skill-ignore: flota */
+}
+
+.shelf-item:hover .shelf-detail,
+.shelf-item:focus-visible .shelf-detail,
+.shelf-item.is-open .shelf-detail {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.shelf-gap {
+    width: 20px;
+    align-self: stretch;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .js .room-shelves-card.is-in .shelf {
+        animation: row-in 560ms var(--ease-out) both;
+        animation-delay: calc(80ms + var(--i, 0) * var(--stagger-item));
+    }
+}
+
+/* ---------- tablet y teléfono ---------- */
+
+@media (max-width: 860px) {
+    .tr-body {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .tr-medals {
+        grid-template-columns: 1fr;
+    }
+
+    .tr-champ .cup {
+        width: 150px;
+    }
+
+    .room-cups {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .room-cup {
+        padding: 18px 10px;
+        gap: 12px;
+    }
+
+    /* la que queda sola en su fila ocupa el ancho entero */
+    .room-cup:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .room-cup:last-child:nth-child(odd) .cup {
+        width: 150px;
+    }
+
+    .room-cup strong {
+        font-size: 19px;
+    }
+
+    .room-cup small {
+        font-size: var(--fs-small);
+    }
+
+    .shelf {
+        padding: 14px 12px 16px;
+    }
+
+    .shelf-item {
+        width: 68px;
+    }
+
+    .shelf-item .medal {
+        width: 38px;
+    }
+
+    .shelf-item.is-cup .cup {
+        width: 60px;
+    }
+
+    .shelf-gap {
+        width: 8px;
+    }
+}

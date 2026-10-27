@@ -95,3 +95,35 @@ Abrí la consola del navegador (F12 → Console).
 | "Clave incorrecta" con la clave buena | El usuario no existe, el email no es exactamente `escribano@tablacavani.app`, o quedó sin **Auto Confirm** |
 | Guardar falla con error de *row-level security* | Entraste bien pero la sesión venció: salí y volvé a entrar |
 | La tabla se ve vacía sin entrar | Faltan las políticas de lectura: corré `supabase-seguridad.sql` |
+
+## Varias tablas y la tabla global
+
+La web ya sabe mostrar varias tablas (una por temporada) y una global que las
+suma, pero la base tiene que tener las tablas nuevas. Hasta que se corra el
+SQL, la web sigue mostrando la Tabla 2026 como siempre.
+
+1. Supabase → SQL Editor → New query.
+2. Pegá todo `supabase-temporadas.sql` y dale Run. No borra nada y se puede
+   correr más de una vez.
+3. La verificación del final tiene que mostrar «Tabla 2026» con todas las
+   juntadas y los participantes, y `juntadas_sin_tabla = 0`.
+
+Después, entrando como escribano, aparecen «Nueva tabla» y «Editar tabla»
+arriba, al lado de las pestañas. Para cargar un año viejo sin el detalle de
+cada juntada: creá la tabla y cargá a cada uno con «Participante» poniendo su
+puntaje final como puntos iniciales.
+
+Orden importante: subí primero esta versión de la web y después corré el
+SQL. El SQL hace obligatoria la tabla de cada juntada, y la versión vieja de
+la web no la manda.
+
+## Fotos de los participantes
+
+1. Supabase → SQL Editor → New query → pegá todo `supabase-fotos.sql` → Run.
+   Agrega la columna `photo_url` y crea la carpeta pública `fotos` en Storage
+   (mirar es público; subir, cambiar y borrar exige la sesión del escribano).
+2. Entrando como escribano, tocá a alguien en la tabla: en su panel aparecen
+   «Cambiar foto» y «Quitar foto». La web recorta la foto al cuadrado y la
+   achica a 320px antes de subirla.
+
+Hasta que se corra el SQL, cada uno se ve con su inicial en su color.

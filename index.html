@@ -9,10 +9,11 @@
     <title>Tabla Cavani y el taburete · Temporada 2026</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="pronostico.css">
     <link rel="stylesheet" href="trofeos.css">
+    <link rel="stylesheet" href="cartas.css">
     <script>document.documentElement.classList.add('js')</script>
 </head>
 
@@ -66,6 +67,7 @@
                 <div class="view-switch" id="viewSwitch" role="group" aria-label="Qué mirar">
                     <button type="button" class="view-tab" data-view="tabla" aria-pressed="true">La tabla</button>
                     <button type="button" class="view-tab" data-view="pronostico" aria-pressed="false">Pronóstico</button>
+                    <button type="button" class="view-tab" data-view="cartas" aria-pressed="false">Cartas</button>
                 </div>
                 <button type="button" id="btnStories" class="btn btn-ghost btn-stories">
                     <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z"/></svg>
@@ -271,6 +273,40 @@
                         <h2 class="card-title" id="fcMethodHeading">Cómo se calcula</h2>
                     </header>
                     <ul class="fc-method" id="fcMethod"></ul>
+                </section>
+            </div>
+
+            <!-- Las cartas: una figurita por jugador, y el álbum para bajar -->
+            <div class="cards-view" id="cardsView" hidden>
+                <section class="card cards-section" aria-labelledby="cardsHeading">
+                    <header class="card-head cards-head">
+                        <div>
+                            <h2 class="card-title" id="cardsHeading">Las cartas</h2>
+                            <p class="card-note" id="cardsNote"></p>
+                        </div>
+                        <button type="button" id="btnAlbum" class="btn btn-primary">Descargar álbum</button>
+                    </header>
+                    <ul class="cards-grid" id="cardsGrid"></ul>
+
+                    <div class="cards-key">
+                        <h3>Qué mide cada atributo</h3>
+                        <p class="cards-key-lead">Cada atributo va de 40 a 99 y sale de las juntadas de esta tabla. La media
+                            es el promedio de los seis, y los puntos y la asistencia pesan más.</p>
+                        <dl class="cards-key-list">
+                            <div><dt>Asistencia</dt><dd>En cuántas juntadas sumó, sobre el total de la tabla.</dd></div>
+                            <div><dt>Fiesta</dt><dd>Cuántas veces fue a asado y boliche, comparado con el que más fue.</dd></div>
+                            <div><dt>Racha</dt><dd>Su racha más larga sumando en juntadas seguidas, comparada con la más larga de la tabla.</dd></div>
+                            <div><dt>Disciplina</dt><dd>Cuantas menos multas, más alta. Sin multas, 99.</dd></div>
+                            <div><dt>Forma</dt><dd>Cómo viene: el promedio de puntos en las últimas 6 juntadas.</dd></div>
+                            <div><dt>Puntos</dt><dd>Dónde está en la tabla: 99 es el primero, 40 es el último.</dd></div>
+                        </dl>
+                        <h3>Las cartas</h3>
+                        <dl class="cards-key-list cards-key-tiers">
+                            <div><dt>Leyenda</dt><dd>La negra y oro: la del primero de la tabla.</dd></div>
+                            <div><dt>Oro, plata y bronce</dt><dd>Según la media: oro desde 78, plata desde 64, bronce por debajo.</dd></div>
+                            <div><dt>Carbón</dt><dd>La negra con brasas: la del último, el que paga el asado.</dd></div>
+                        </dl>
+                    </div>
                 </section>
             </div>
 
@@ -579,6 +615,22 @@
         </div>
     </div>
 
+    <!-- La figurita de uno en grande: su página del álbum -->
+    <div id="figModal" class="modal fig-modal" role="dialog" aria-modal="true" aria-label="Página del álbum">
+        <div class="modal-content fig-modal-content">
+            <button class="modal-close" id="btnCloseFig" aria-label="Cerrar">&times;</button>
+            <div id="figPage"></div>
+            <div class="modal-actions fig-actions">
+                <button type="button" id="btnFigPrev" class="btn btn-ghost modal-actions-start">Anterior</button>
+                <button type="button" id="btnFigNext" class="btn btn-ghost">Siguiente</button>
+                <button type="button" id="btnFigDownload" class="btn btn-primary">Bajar carta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Donde se arman las páginas del álbum para fotografiarlas, fuera de la pantalla -->
+    <div class="album-stage" id="albumStage" aria-hidden="true"></div>
+
     <!-- La foto de alguien en grande. Va última: queda encima de cualquier otra ventana. -->
     <div id="photoModal" class="modal photo-modal" role="dialog" aria-modal="true" aria-labelledby="photoModalName">
         <figure class="photo-frame">
@@ -597,6 +649,7 @@
     <script src="script.js"></script>
     <script src="pronostico.js"></script>
     <script src="trofeos.js"></script>
+    <script src="cartas.js"></script>
 </body>
 
 </html>

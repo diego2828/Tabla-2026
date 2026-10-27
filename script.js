@@ -241,6 +241,7 @@ async function renderAll() {
     await updateStats();
     renderForecastView();
     renderTrophies();
+    renderCards();
 }
 
 function ensureData() {
@@ -324,7 +325,7 @@ async function loadData() {
 // #tabla-<id>/pronostico.
 function pickSeason() {
     const [hash, view] = decodeURIComponent(location.hash.slice(1)).split('/');
-    currentView = hash === TROPHY_TAB ? 'trofeos' : view === 'pronostico' ? 'pronostico' : 'tabla';
+    currentView = hash === TROPHY_TAB ? 'trofeos' : ['pronostico', 'cartas'].includes(view) ? view : 'tabla';
     const fromHash = hash === GLOBAL_ID && seasons.length > 1
         ? GLOBAL_ID
         : seasons.find(s => hash === `tabla-${s.id}`)?.id;
@@ -357,9 +358,9 @@ function writeSeasonHash() {
         return;
     }
     const season = currentSeasonId === GLOBAL_ID ? GLOBAL_ID
-        : seasonsReady ? `tabla-${currentSeasonId}` : (currentView === 'pronostico' ? 'tabla' : '');
-    const hash = season && currentView === 'pronostico' && currentSeasonId !== GLOBAL_ID
-        ? `${season}/pronostico` : season;
+        : seasonsReady ? `tabla-${currentSeasonId}` : (currentView !== 'tabla' ? 'tabla' : '');
+    const hash = season && currentView !== 'tabla' && currentSeasonId !== GLOBAL_ID
+        ? `${season}/${currentView}` : season;
     history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search);
 }
 

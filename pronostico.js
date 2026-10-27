@@ -266,6 +266,7 @@ function setView(view) {
     currentView = view;
     writeSeasonHash();
     renderForecastView();
+    renderCards();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -285,10 +286,14 @@ function renderForecastView() {
 
     const canForecast = forecastAvailable();
     const canStories = storiesAvailable();
+    const canCards = cardsAvailable();
     if (!canForecast && currentView === 'pronostico') currentView = 'tabla';
+    if (!canCards && currentView === 'cartas') currentView = 'tabla';
 
-    bar.hidden = !canForecast && !canStories;
-    document.getElementById('viewSwitch').hidden = !canForecast;
+    bar.hidden = !canForecast && !canStories && !canCards;
+    document.getElementById('viewSwitch').hidden = !canForecast && !canCards;
+    bar.querySelector('[data-view="pronostico"]').hidden = !canForecast;
+    bar.querySelector('[data-view="cartas"]').hidden = !canCards;
     document.getElementById('btnStories').hidden = !canStories;
     bar.querySelectorAll('.view-tab').forEach(tab =>
         tab.setAttribute('aria-pressed', String(tab.dataset.view === currentView)));

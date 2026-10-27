@@ -1,0 +1,810 @@
+/* ===================================================================
+   LAS CARTAS y EL ÁLBUM
+   La carta es un escudo con la parrilla de fondo. Todo adentro va en em:
+   la misma carta sirve en la grilla, en grande y en el PDF, y se achica o
+   agranda cambiando solo el tamaño de letra. Los colores de cada categoría
+   llegan escritos desde cartas.js (html2canvas no lee variables en SVG).
+   Sin color-mix ni object-fit adentro de la carta: html2canvas no los dibuja.
+   =================================================================== */
+
+:root {
+    --font-card: "Barlow Condensed", "Arial Narrow", var(--font);
+}
+
+/* en las cartas, todo lo de la tabla se guarda */
+body.is-cards #stakeSection,
+body.is-cards #raceSection,
+body.is-cards .grid-main,
+body.is-cards #trophySection,
+body.is-cards #seasonsSection,
+body.is-cards #actasSection,
+body.is-cards #forecastView {
+    display: none;
+}
+
+.cards-head {
+    align-items: center;
+}
+
+.cards-head .card-note {
+    margin-top: 4px;
+}
+
+/* ---------- la carta ---------- */
+
+.fig {
+    position: relative;
+    width: 16em;
+    height: 23em;
+    color: var(--fig-ink);
+    font-family: var(--font);
+    line-height: 1;
+    text-align: left;
+}
+
+.fig-shape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.fig-rating {
+    position: absolute;
+    top: 2.1em;
+    left: 1.1em;
+    width: 3.8em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25em;
+    text-align: center;
+}
+
+.fig-rating b {
+    font-family: var(--font-card);
+    font-size: 3.5em;
+    font-weight: 700;
+    line-height: 0.85;
+    letter-spacing: -0.02em;
+}
+
+.fig-rating span {
+    font-family: var(--font-card);
+    font-size: 0.95em;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.fig-rating small {
+    margin-top: 0.35em;
+    font-size: 0.66em;
+    font-weight: 600;
+    color: var(--fig-sub);
+}
+
+.fig-photo {
+    position: absolute;
+    top: 1.9em;
+    left: 5.1em;
+    width: 9.6em;
+    height: 9.6em;
+    border-radius: 0.8em;
+    overflow: hidden;
+    background: var(--hue);
+    display: grid;
+    place-items: center;
+}
+
+.fig-photo span {
+    font-family: var(--font-card);
+    font-size: 4em;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.fig-photo img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.fig-name {
+    position: absolute;
+    /* cada posición va en el em de la carta: se divide por su propio tamaño */
+    top: calc(12em / 2.35);
+    left: calc(0.6em / 2.35);
+    right: calc(0.6em / 2.35);
+    font-family: var(--font-card);
+    font-size: 2.35em;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.fig-name.is-long {
+    font-size: 1.8em;
+    top: calc(12.4em / 1.8);
+}
+
+.fig-alias {
+    position: absolute;
+    top: calc(14.4em / 0.74);
+    left: calc(0.6em / 0.74);
+    right: calc(0.6em / 0.74);
+    font-size: 0.74em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--fig-sub);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.fig-attrs {
+    position: absolute;
+    top: 15.55em;
+    left: 1.3em;
+    right: 1.3em;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    row-gap: 0.3em;
+}
+
+/* el número arriba y la palabra entera abajo */
+.fig-attrs div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.12em;
+}
+
+.fig-attrs dd {
+    margin: 0;
+    font-family: var(--font-card);
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 0.9;
+}
+
+.fig-attrs dt {
+    font-family: var(--font-card);
+    font-size: 0.72em;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--fig-sub);
+    white-space: nowrap;
+}
+
+.fig-foot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(20.65em / 1.05);
+    font-family: var(--font-card);
+    font-size: 1.05em;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ---------- la grilla: el mazo ---------- */
+
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 30px 22px;
+    padding: 6px 4px 10px;
+}
+
+.fig-slot {
+    min-width: 0;
+}
+
+.fig-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    container-type: inline-size;
+    border-radius: 14px;
+    transform: perspective(900px) translateY(var(--lift, 0)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform 420ms var(--ease-expo), filter 420ms var(--ease-expo);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.fig-btn .fig {
+    font-size: calc(100cqw / 16);
+}
+
+/* levantada, la carta flota: es lo único con sombra, y sigue la forma */
+.fig-btn:hover {
+    --lift: -8px;
+    filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.55)); /* taste-skill-ignore: la carta levantada flota */
+    transition: transform 120ms linear, filter 300ms var(--ease-out);
+}
+
+.fig-btn:active {
+    --lift: -2px;
+    transition: transform var(--t-press) var(--ease);
+}
+
+.fig-btn:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 6px;
+}
+
+/* se reparten de a una cuando se entra */
+@media (prefers-reduced-motion: no-preference) {
+    .js .cards-grid .fig-slot {
+        opacity: 0;
+        transform: translateY(36px) rotate(-4deg) scale(0.96);
+        transition: opacity 600ms var(--ease-expo), transform 900ms var(--ease-expo);
+        transition-delay: calc(var(--i) * 70ms);
+    }
+
+    .js .cards-grid.is-dealt .fig-slot {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .cards-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .cards-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px 12px;
+        padding: 4px 0 6px;
+    }
+
+    .cards-head {
+        flex-direction: row;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+}
+
+/* ---------- qué mide cada atributo ---------- */
+
+.cards-key {
+    margin-top: 34px;
+    padding-top: 26px;
+    background: var(--surface);
+}
+
+.cards-key h3 {
+    font-size: var(--fs-section);
+    font-weight: 600;
+}
+
+.cards-key h3 + .cards-key-list,
+.cards-key-lead {
+    margin-top: 8px;
+}
+
+.cards-key-lead {
+    font-size: var(--fs-body);
+    color: var(--muted);
+    max-width: 70ch;
+}
+
+.cards-key-list {
+    margin: 16px 0 28px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.cards-key-list:last-child {
+    margin-bottom: 0;
+}
+
+.cards-key-list div {
+    background: var(--raised);
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+
+.cards-key-list dt {
+    font-family: var(--font-card);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.cards-key-list dd {
+    margin-top: 4px;
+    font-size: var(--fs-body);
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+    .cards-key-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ---------- la página del álbum, en pantalla ---------- */
+
+.fig-modal-content {
+    max-width: 980px;
+}
+
+.alb-page {
+    color: var(--text);
+    font-family: var(--font);
+    text-align: left;
+}
+
+.alb-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-right: 44px;
+    font-size: 13px;
+    color: var(--faint);
+    margin-bottom: 18px;
+}
+
+.alb-hero {
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    gap: 32px;
+    align-items: center;
+}
+
+/* la carta va sobre el color de su dueño, el mismo de la carrera */
+.alb-card {
+    container-type: inline-size;
+    background: var(--hue-hex);
+    border-radius: 16px;
+    padding: 26px 24px 22px;
+}
+
+.alb-card .fig {
+    font-size: calc(100cqw / 16);
+}
+
+.alb-tier {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.alb-name {
+    margin-top: 8px;
+    font-family: var(--font-card);
+    font-size: 84px;
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+
+.alb-standing {
+    margin-top: 10px;
+    font-family: var(--font-card);
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--hue-hex);
+}
+
+.alb-verdict {
+    margin-top: 18px;
+    font-size: 18px;
+    line-height: 1.45;
+    max-width: 36ch;
+}
+
+.alb-trophies {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.alb-trophies li {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--pill-gold-bg);
+    color: var(--pill-gold-ink);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.alb-trophies li.is-anti {
+    background: var(--pill-ember-bg);
+    color: var(--pill-ember-ink);
+}
+
+.alb-year {
+    margin-top: 30px;
+}
+
+/* sus atributos, cada uno con su cuenta */
+.alb-attrs {
+    margin-top: 30px;
+}
+
+.alb-attrs h4 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.alb-attrs dl {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.alb-attr {
+    background: var(--raised);
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+
+.alb-attr dt {
+    font-family: var(--font-card);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.alb-attr dt b {
+    font-size: 1.45em;
+    color: var(--hue-hex);
+    margin-right: 4px;
+}
+
+.alb-attr dd {
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.alb-year h4,
+.alb-day h4 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.alb-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: 10px;
+}
+
+.alb-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--faint);
+}
+
+.is-print .alb-scale {
+    font-size: 20px;
+}
+
+.alb-facts {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.alb-fact {
+    background: var(--raised);
+    border-radius: 14px;
+    padding: 16px 18px;
+    min-width: 0;
+}
+
+.alb-fact dt {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.alb-fact dd {
+    margin-top: 4px;
+    font-family: var(--font-card);
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.alb-fact dd small {
+    font-size: 0.5em;
+    color: var(--faint);
+}
+
+.alb-fact p {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.alb-days {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.alb-day {
+    background: var(--raised);
+    border-radius: 14px;
+    padding: 16px 18px;
+    min-width: 0;
+}
+
+.alb-day-name {
+    margin-top: 6px;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.alb-day-meta {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.alb-foot {
+    display: none;
+}
+
+.fig-actions {
+    margin-top: 22px;
+}
+
+@media (max-width: 760px) {
+    .fig-modal {
+        padding: 10px;
+    }
+
+    .fig-modal-content {
+        padding: 20px 16px;
+    }
+
+    .alb-hero {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .alb-card {
+        width: min(100%, 300px);
+        justify-self: center;
+    }
+
+    .alb-name {
+        font-size: 64px;
+    }
+
+    .alb-facts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .alb-attrs dl {
+        grid-template-columns: 1fr;
+    }
+
+    .alb-days {
+        grid-template-columns: 1fr;
+    }
+
+    .fig-actions {
+        flex-wrap: wrap;
+    }
+
+    .fig-actions #btnFigDownload {
+        flex: 1 0 100%;
+        order: -1;
+    }
+}
+
+/* ---------- el álbum para el PDF: A4 a 150 ppp ---------- */
+
+.album-stage {
+    position: fixed;
+    top: 0;
+    left: -20000px;
+    pointer-events: none;
+}
+
+/* html2canvas mide mal las cifras tabulares: en lo que se fotografía, normales */
+.album-stage * {
+    font-variant-numeric: normal !important;
+}
+
+.alb-fact-name {
+    font-size: 0.72em;
+}
+
+.alb-page.is-print {
+    width: 1240px;
+    height: 1754px;
+    padding: 76px 80px;
+    background: #0a0908;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+.alb-page.is-print > * {
+    flex-shrink: 0;
+}
+
+.is-print .alb-top {
+    font-size: 22px;
+    padding: 0;
+    margin: 0;
+}
+
+.is-print .alb-hero {
+    grid-template-columns: 450px minmax(0, 1fr);
+    gap: 56px;
+}
+
+.is-print .alb-card {
+    border-radius: 24px;
+    padding: 44px 41px 36px;
+}
+
+.is-print .alb-card .fig {
+    font-size: 23px;
+}
+
+.is-print .alb-tier {
+    font-size: 24px;
+}
+
+.is-print .alb-name {
+    margin-top: 14px;
+    font-size: 132px;
+}
+
+.is-print .alb-standing {
+    margin-top: 16px;
+    font-size: 42px;
+}
+
+.is-print .alb-verdict {
+    margin-top: 30px;
+    font-size: 29px;
+}
+
+.is-print .alb-trophies {
+    margin-top: 30px;
+    gap: 10px;
+}
+
+.is-print .alb-trophies li {
+    padding: 10px 20px;
+    font-size: 21px;
+}
+
+.is-print .alb-year {
+    margin: 0;
+}
+
+.is-print .alb-year h4,
+.is-print .alb-day h4 {
+    font-size: 22px;
+}
+
+.is-print .alb-chart {
+    margin-top: 14px;
+}
+
+.is-print .alb-facts {
+    margin: 0;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.is-print .alb-fact,
+.is-print .alb-day {
+    background: #201d1a;
+    border-radius: 20px;
+    padding: 22px 22px;
+}
+
+.is-print .alb-fact dt {
+    font-size: 20px;
+}
+
+.is-print .alb-fact dd {
+    margin-top: 8px;
+    font-size: 64px;
+}
+
+.is-print .alb-fact p {
+    margin-top: 8px;
+    font-size: 18px;
+}
+
+.is-print .alb-days {
+    margin: 0;
+    gap: 12px;
+}
+
+.is-print .alb-day-name {
+    margin-top: 10px;
+    font-size: 32px;
+}
+
+.is-print .alb-day-meta {
+    margin-top: 8px;
+    font-size: 22px;
+}
+
+.is-print .alb-foot {
+    display: flex;
+    justify-content: space-between;
+    font-size: 22px;
+    color: var(--faint);
+}
+
+/* la tapa: un campo de brasa y el mazo entero */
+.alb-cover.is-print {
+    background: #ff6a1f;
+    color: #120b06;
+}
+
+.alb-cover .alb-top,
+.alb-cover .alb-foot {
+    color: #3d1a06;
+    font-weight: 500;
+}
+
+.alb-cover-title h3 {
+    font-family: var(--font-card);
+    font-size: 230px;
+    font-weight: 700;
+    line-height: 0.88;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+}
+
+.alb-cover-title p {
+    margin-top: 22px;
+    font-size: 30px;
+    font-weight: 500;
+}
+
+.alb-cover-title p + p {
+    margin-top: 6px;
+}
+
+.alb-cover-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 16em);
+    justify-content: space-between;
+    row-gap: 40px;
+    font-size: 15.5px;
+}
+
+.alb-solo {
+    display: inline-block;
+    font-size: 24px;
+}
